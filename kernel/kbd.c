@@ -26,6 +26,8 @@ kbdgetc(void)
 
   st = inb(KBSTATP);
   if((st & KBS_DIB) == 0)
+    return -2;
+  if((st & msOrKbd) != 0)
     return -1;
   data = inb(KBDATAP);
 
@@ -60,19 +62,23 @@ void
 kbdintr(void)
 {
   //cprintf("kbd ISR");
-  unsigned int c;
+  int c;
   keyBuffer.size = 0;
   keyBuffer.cur = 0;
 
   //cprintf("Console Lock");
   consoleLock();
-  while((c = kbdgetc()) >= 0){
-    if((c & msOrKbd) == 0 && keyBuffer.size != 10)
+  while((c = kbdgetc()) >= -1){
+    if(keyBuffer.size < 9) // (c = kbggetc & msOrKbd) == 0
     {
       //cprintf("key board input. adding data to buffer");
-      keyBuffer.buff[keyBuffer.size++] = c;
+      if (c!= -1)
+      {
+        keyBuffer.buff[keyBuffer.size++] = c;
+      }
     }
   }
+  keyBuffer.buff[keyBuffer.size] = -1;
   consoleUnlock();
   // cprintf("entering consoleintr");
   consoleintr(buffgetc);

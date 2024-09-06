@@ -91,6 +91,9 @@ void            log_write(struct buf*);
 void            begin_op();
 void            end_op();
 
+//mouse.c
+void            mouseinit(void);
+
 // mp.c
 extern int      ismp;
 void            mpinit(void);
