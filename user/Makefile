@@ -1,7 +1,7 @@
 include ../Makefile.inc
 
 KERNEL = ../kernel
-CFLAGS += -I..
+CFLAGS += -Wno-infinite-recursion -I..
 ASFLAGS += -I..
 
 ULIB = ulib.o usys.o printf.o umalloc.o

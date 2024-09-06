@@ -20,7 +20,10 @@ void            bwrite(struct buf*);
 void            consoleinit(void);
 void            cprintf(char*, ...);
 void            consoleintr(int(*)(void));
+//void            consoleintr();
 void            panic(char*) __attribute__((noreturn));
+void            consoleLock();
+void            consoleUnlock();
 
 // exec.c
 int             exec(char*, char**);
@@ -71,6 +74,7 @@ void            kinit2(void*, void*);
 
 // kbd.c
 void            kbdintr(void);
+int             buffgetc(void);
 
 // lapic.c
 void            cmostime(struct rtcdate *r);

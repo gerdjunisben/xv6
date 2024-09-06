@@ -16,6 +16,9 @@
 
 #define E0ESC           (1<<6)
 
+//mouse check value
+#define msOrKbd 0x20
+
 // Special keycodes
 #define KEY_HOME        0xE0
 #define KEY_END         0xE1

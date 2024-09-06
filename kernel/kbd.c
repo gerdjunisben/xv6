@@ -3,6 +3,18 @@
 #include "defs.h"
 #include "kbd.h"
 
+static struct {
+  int buff[10];
+  int size;
+  int cur;
+} keyBuffer;
+
+int buffgetc(void)
+{
+  return keyBuffer.buff[keyBuffer.cur++];
+}
+
+
 int
 kbdgetc(void)
 {
@@ -43,8 +55,25 @@ kbdgetc(void)
   return c;
 }
 
+
 void
 kbdintr(void)
 {
-  consoleintr(kbdgetc);
+  //cprintf("kbd ISR");
+  unsigned int c;
+  keyBuffer.size = 0;
+  keyBuffer.cur = 0;
+
+  //cprintf("Console Lock");
+  consoleLock();
+  while((c = kbdgetc()) >= 0){
+    if((c & msOrKbd) == 0 && keyBuffer.size != 10)
+    {
+      //cprintf("key board input. adding data to buffer");
+      keyBuffer.buff[keyBuffer.size++] = c;
+    }
+  }
+  consoleUnlock();
+  // cprintf("entering consoleintr");
+  consoleintr(buffgetc);
 }
