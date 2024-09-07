@@ -89,3 +89,16 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+int sys_readmouse(void)
+{
+  char* pkt;
+
+  if(argptr(0,&pkt,3) == -1)
+  {
+    return -1;
+  }
+
+  return readmouse(pkt);
+}

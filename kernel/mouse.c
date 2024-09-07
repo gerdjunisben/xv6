@@ -6,7 +6,7 @@
 #include "sleeplock.h"
 
 static struct {
-    uint buffer[9];
+    char buffer[9];
     int producerIndex;
     int consumerIndex;
     uint n;
@@ -15,43 +15,58 @@ static struct {
     struct spinlock spinLock;
 } msBuffer;
 
-void consume(uint* packet,uint size)
+void consume(char* packet,uint size)
 {
     acquire(&msBuffer.spinLock);
 
+    //if there isn't enough space don't bother
     if(size<3)
     {
         return;
     }
 
+    //if there isn't enough in the buffer sleep until then
     if(msBuffer.size<3)
     {
         acquiresleep(&msBuffer.sleepLock);
     }
 
+    //weird order align it trust me
+    packet[2] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
     packet[0] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
     packet[1] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
-    packet[2] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
     
     msBuffer.size -= 3;
 
     release(&msBuffer.spinLock);
 }
 
-void produce(uint msg)
+void produce(char msg)
 {
     acquire(&msBuffer.spinLock);
     
+    //if full discard
     if(msBuffer.size != 9)
     {
+        //check if it's a mouse packet
         msBuffer.buffer[(msBuffer.producerIndex++) % msBuffer.n] = msg;
         msBuffer.size++;
 
+        //wake up consumer when there is a full packet
         if(msBuffer.size>=3)
             releasesleep(&msBuffer.sleepLock);
     }
 
     release(&msBuffer.spinLock);
+}
+
+int readmouse(char *pkt) {
+
+    cprintf("Pointer: %p", pkt);
+
+    consume(pkt,3);
+
+    return 0;
 }
 
 void mouseinit(void)
@@ -134,16 +149,5 @@ void mouseintr(void)
     {
         uint data = inb(MSDATAP);
         produce(data);
-
-        if(msBuffer.size>=3)
-        {
-            uint res[3];
-            consume(res,3);
-            for(int i =0;i<3;i++)
-            {
-                cprintf("Packet %d is %x ",i,res[i]);
-            }
-            cprintf("\n");
-        }
     }
 }

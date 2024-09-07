@@ -94,6 +94,7 @@ void            end_op();
 //mouse.c
 void            mouseinit(void);
 void            mouseintr(void);
+int             readmouse(char *pkt);
 
 // mp.c
 extern int      ismp;
