@@ -28,7 +28,10 @@ kbdgetc(void)
   if((st & KBS_DIB) == 0)
     return -2;
   if((st & msOrKbd) != 0)
+  {
+    inb(KBDATAP);
     return -1;
+  }
   data = inb(KBDATAP);
 
   if(data == 0xE0){

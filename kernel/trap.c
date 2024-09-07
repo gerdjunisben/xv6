@@ -36,6 +36,11 @@ idtinit(void)
 void
 trap(struct trapframe *tf)
 {
+  
+  if(tf->trapno != T_IRQ0 + IRQ_TIMER)
+  {
+    cprintf("Trapno %d",tf->trapno);
+  }
   if(tf->trapno == T_SYSCALL){
     if(myproc()->killed)
       exit();
@@ -69,6 +74,10 @@ trap(struct trapframe *tf)
     break;
   case T_IRQ0 + IRQ_COM1:
     uartintr();
+    lapiceoi();
+    break;
+  case T_IRQ0 + IRQ_MS:
+    mouseintr();
     lapiceoi();
     break;
   case T_IRQ0 + 7:

@@ -93,6 +93,7 @@ void            end_op();
 
 //mouse.c
 void            mouseinit(void);
+void            mouseintr(void);
 
 // mp.c
 extern int      ismp;

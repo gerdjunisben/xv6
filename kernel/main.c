@@ -26,6 +26,7 @@ main(void)
   ioapicinit();    // another interrupt controller
   consoleinit();   // console hardware
   uartinit();      // serial port
+  mouseinit();     // mouse init
   pinit();         // process table
   tvinit();        // trap vectors
   binit();         // buffer cache
@@ -113,4 +114,3 @@ pde_t entrypgdir[NPDENTRIES] = {
 // Blank page.
 //PAGEBREAK!
 // Blank page.
-

@@ -24,6 +24,8 @@ static struct {
   int locking;
 } cons;
 
+
+
 static void
 printint(int xx, int base, int sign)
 {
@@ -188,6 +190,7 @@ struct {
 
 #define C(x)  ((x)-'@')  // Control-x
 
+
 void
 consoleintr(int (*getc)(void))
 {
@@ -231,6 +234,18 @@ consoleintr(int (*getc)(void))
     procdump();  // now call procdump() wo. cons.lock held
   }
 }
+
+
+void consoleLock()
+{
+  acquire(&cons.lock);
+}
+
+void consoleUnlock()
+{
+  release(&cons.lock);
+}
+
 
 int
 consoleread(struct inode *ip, char *dst, int n)
@@ -295,5 +310,6 @@ consoleinit(void)
   cons.locking = 1;
 
   ioapicenable(IRQ_KBD, 0);
+  ioapicenable(IRQ_MS, 0);
 }
 
