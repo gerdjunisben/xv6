@@ -15,57 +15,86 @@ static struct {
     struct spinlock spinLock;
 } msBuffer;
 
-void consume(char* packet,uint size)
+void consume(char* packet, uint size)
 {
     acquire(&msBuffer.spinLock);
+    cprintf("Consuming on pointer %p of size %d\n", packet, size);
 
     //if there isn't enough space don't bother
-    if(size<3)
+    if(size < 3)
     {
+        cprintf("Unsufficient Pointer Size\n");
+        release(&msBuffer.spinLock);
         return;
     }
 
     //if there isn't enough in the buffer sleep until then
-    if(msBuffer.size<3)
+    if(msBuffer.size < 3)
     {
+        cprintf("Not enough data on buffer\nCONSUMER SLEEPING\n");
+        release(&msBuffer.spinLock);
         acquiresleep(&msBuffer.sleepLock);
     }
 
-    //weird order align it trust me
-    packet[2] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
-    packet[0] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
-    packet[1] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
-    
-    msBuffer.size -= 3;
+    else {
+        cprintf("Full 3-byte data detected. Consuming...\n");
+        for (int i = 0; i < 3; i++) {
+            cprintf("Storing byte 0x%x from buffer index %d to packet index %d\n", msBuffer.buffer[msBuffer.consumerIndex % msBuffer.n], msBuffer.consumerIndex % msBuffer.n, i);
+            packet[i] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
+        }
+            
+        msBuffer.size -= 3;
 
-    release(&msBuffer.spinLock);
+        release(&msBuffer.spinLock);
+    }
+
+    
 }
 
-void produce(char msg)
+void produce(uchar msg)
 {
     acquire(&msBuffer.spinLock);
     
-    //if full discard
-    if(msBuffer.size != 9)
-    {
-        //check if it's a mouse packet
-        msBuffer.buffer[(msBuffer.producerIndex++) % msBuffer.n] = msg;
-        msBuffer.size++;
-
-        //wake up consumer when there is a full packet
-        if(msBuffer.size>=3)
-            releasesleep(&msBuffer.sleepLock);
+    cprintf("Producing mouse packet 0x%x\n", msg);
+    //ACK is being 'produced' at boot. This should handle it
+    if(msg == ACK || msBuffer.size >= msBuffer.n) {
+        cprintf("ACK or BUFF FULL\nDISCARTED\n");
+        release(&msBuffer.spinLock);
+        return;
     }
 
+    //sanity check for first byte
+    if (msBuffer.producerIndex % 3 == 0) {
+        cprintf("Supposed to be First Byte of a new 3-Byte Sequence\n");
+
+        if ((msg&0x8) != 0) {
+            cprintf("Valid First byte, ");
+        }
+
+        else {
+            cprintf("Invalid First Byte\nDISCARD\n");
+
+            release(&msBuffer.spinLock);
+            return;
+        }
+    }
+
+    cprintf("Storing byte 0x%x at index %d\n", msg, msBuffer.producerIndex);
+    msBuffer.buffer[(msBuffer.producerIndex++) % msBuffer.n] = msg;
+    msBuffer.size++;
+
+    //wake up consumer when there is a full packet
+    if(msBuffer.size >= 3) {
+        cprintf("3-byte sequence detected.\nAWAKENING CONSUMER\n");
+        releasesleep(&msBuffer.sleepLock);
+    }
+        
     release(&msBuffer.spinLock);
 }
 
 int readmouse(char *pkt) {
 
-    cprintf("Pointer: %p", pkt);
-
-    consume(pkt,3);
-
+    consume(pkt, 3);
     return 0;
 }
 
@@ -104,21 +133,21 @@ void mouseinit(void)
     st = inb(MSDATAP);
     if(st != ACK)
     {
-        cprintf("No ACK?");
+        cprintf("No ACK?\n");
     }
     else
     {
-        cprintf("ACK");
+        cprintf("ACK\n");
     }
 
     st = inb(MSDATAP);
     if(st != TESTPASS)
     {
-        cprintf("FAILED");
+        cprintf("FAILED\n");
     }
     else
     {
-        cprintf("PASSED");
+        cprintf("PASSED\n");
     }
 
     //init mousedd
@@ -129,11 +158,11 @@ void mouseinit(void)
         st = inb(MSDATAP);
         if(st != ACK)
         {
-            cprintf("No ACK?");
+            cprintf("No ACK?\n");
         }
         else
         {
-            cprintf("ACK");
+            cprintf("ACK\n");
         }
     }
 }
@@ -141,13 +170,11 @@ void mouseinit(void)
 void mouseintr(void)
 {
     uint st = inb(MSSTATP);
-    if((st&0x1)==0)
-    {
+
+    //check wether there is data to read and if it comes from the mouse
+    if ((st&0x1)==0 || (st&0x20) == 0)
         return;
-    }
-    else
-    {
-        uint data = inb(MSDATAP);
-        produce(data);
-    }
+
+    uchar data = inb(MSDATAP);
+    produce(data);
 }
