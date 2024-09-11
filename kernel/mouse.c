@@ -58,7 +58,7 @@ void produce(uchar msg)
     cprintf("Producing mouse packet 0x%x\n", msg);
     //ACK is being 'produced' at boot. This should handle it
     if(msg == ACK || msBuffer.size >= msBuffer.n) {
-        cprintf("ACK or BUFF FULL\nDISCARTED\n");
+        cprintf("ACK or BUFF FULL\nDISCARDED\n");
         release(&msBuffer.spinLock);
         return;
     }
@@ -127,32 +127,55 @@ void mouseinit(void)
 
 
     //reset mouse
-    outb(MSSTATP,MSCOMMAND);
-    outb(MSDATAP,RESETMS);
-
-    st = inb(MSDATAP);
-    if(st != ACK)
-    {
-        cprintf("No ACK?\n");
-    }
-    else
-    {
-        cprintf("ACK\n");
-    }
-
-    st = inb(MSDATAP);
-    if(st != TESTPASS)
-    {
-        cprintf("FAILED\n");
-    }
-    else
-    {
-        cprintf("PASSED\n");
-    }
-
-    //init mousedd
+    st = -1;
+    int timeout = 0;
     while(st != ACK)
     {
+        timeout+=1;
+        outb(MSSTATP,MSCOMMAND);
+        outb(MSDATAP,RESETMS);
+        st = inb(MSDATAP);
+        if(st != ACK)
+        {
+            cprintf("No ACK?\n");
+        }
+        else
+        {
+            cprintf("ACK\n");
+        }
+        cprintf("Ticks since start %d\n",timeout);
+        if(timeout >=100)
+        {
+            cprintf("failure timeout\n");
+            break;
+        }
+    }
+
+    timeout = 0;
+    do{
+        timeout+=1;
+        st = inb(MSDATAP);
+        if(st != TESTPASS)
+        {
+            cprintf("FAILED\n");
+        }
+        else
+        {
+            cprintf("PASSED\n");
+        }   
+        cprintf("Ticks since start %d\n",timeout);
+        if(timeout >=100)
+        {
+            cprintf("failure timeout\n");
+            break;
+        }
+    }while(st!=TESTPASS);
+
+    //init mousedd
+    timeout = 0;
+    while(st != ACK)
+    {
+        timeout+=1;
         outb(MSSTATP,MSCOMMAND);
         outb(MSDATAP,MSINIT);
         st = inb(MSDATAP);
@@ -163,6 +186,12 @@ void mouseinit(void)
         else
         {
             cprintf("ACK\n");
+        }
+        cprintf("Ticks since start %d\n",timeout);
+        if(timeout >=100)
+        {
+            cprintf("failure timeout\n");
+            break;
         }
     }
 }
