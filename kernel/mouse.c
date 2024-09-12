@@ -114,7 +114,7 @@ void mouseinit(void)
     inb(MSDATAP);
     inb(MSSTATP);
 
-    //enable the port
+    //enable the mouse
     outb(MSSTATP,ENABLEMS);
 
     //set config
@@ -127,9 +127,8 @@ void mouseinit(void)
 
 
     //reset mouse
-    st = -1;
     int timeout = 0;
-    while(st != ACK)
+    do
     {
         timeout+=1;
         outb(MSSTATP,MSCOMMAND);
@@ -149,7 +148,7 @@ void mouseinit(void)
             cprintf("failure timeout\n");
             break;
         }
-    }
+    }while(st != ACK);
 
     timeout = 0;
     do{
@@ -173,7 +172,7 @@ void mouseinit(void)
 
     //init mousedd
     timeout = 0;
-    while(st != ACK)
+    do
     {
         timeout+=1;
         outb(MSSTATP,MSCOMMAND);
@@ -193,7 +192,7 @@ void mouseinit(void)
             cprintf("failure timeout\n");
             break;
         }
-    }
+    }while(st != ACK);
 }
 
 void mouseintr(void)

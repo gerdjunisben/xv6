@@ -1,0 +1,64 @@
+What did we do and why
+
+>Excercise 1: Making the driver
+    -Part 1:Decoupling keyboard and mouse
+        This was a little tricky but ultimately this is what we ended up doing
+            First we made a static structure keyBuffer to act as an inbetween for the part
+            that reads the keys and the part that prints to console. We read in up to 10
+            chars into the buffer then passed the console a method to get the next char from
+            the buffer. We of course needed to lock the console while this happened so we
+            made methods in console that are reachable by the keyboard (via defs.h) to call
+            the console lock methods.
+            Then we added a comparison to the part that reads the keyboard to ignore
+            bytes with the bit that signified a mouse input (bitwise & with 0x20, but we
+            named it msOrKbd and defined it in the header for readability). We return -1
+            when that happens which causes the input loop to not add and ignore and we return
+            -2 on a real error
+    -Part 2:Initializing the mouse
+        We ended up trial and erroring this for a few hours, on the bright side we know
+        how now and it's really easy. It's just doing this for the first time and being
+        unfamiliar with talking to devices through ports made it rough. In the end the wiki
+        page (not really wikipedia but you get it) had exactly what to do in the right order
+        and how to execute these tasks. Also note that I will be using the name for the various hex nums
+        we created in mouse.h to refer to ports, ACKS and commands. So here's them here.
+            #define MSSTATP         0x64    // port 0x64
+            #define MSDATAP         0x60    // port 0x60
+
+            #define MSCOMMAND       0xD4    //prepare to write to mouse
+            #define MSINIT          0xF4    //init the mouse
+
+            #define MSACK           0xFA    //ACK response from mouse
+
+            #define GETCOMPAQ       0x20    //Get Compaq Status
+            #define SETCOMPAQ       0x60    //set Compaq Status
+
+            #define ENABLEMS        0xA8    //enable mouse
+            #define ENABLEKBD       0xAE    //enable keyboard
+
+            #define RESETMS         0xFF    //reset mouse
+
+            #define TESTPASS        0xAA    //passed test
+            #define ACK             0xFA    
+
+            First empty the buffer (inb both MSDATAP and MSSTATP to read them)
+            Next write ENABLEMS to MSSTATP to enable the mouse 
+            Then write GETCOMPAQ to MSSTATP to get the compaq status from the mouse
+            Next we turn on bit 1 and flip bit 5 using bitwise or and and respectively on 0x2 and 0x20
+            After that you write SETCOMPAQ to MSSTATP and the new compaq setting to MSDATAP
+            The next 3 I do in do-while loops since the next few return ACK or TESTPASS to signify they
+            worked
+                First up write MSCOMMAND to MSSTATP to ready the PS/2 controller to send a command to the
+                mouse then write RESETMS to MSDATAP and read from MSDATAP, if it's an ACK break out of the
+                loop and do the next. This will reset the mouse. Additionally this will break automatically
+                after some number of attempts
+                Second we check for a test pass after reset by reading from MSDATAP in a similar loop
+                Finally we init the mouse by writing MSCOMMAND to MSSTATP just like last time but then
+                writing MSINIT to MSDATAP otherwise this is the same as the first one
+    -Part 3: Buffering mouse data
+
+
+
+How to test
+
+Assumptions and design decisions
+
