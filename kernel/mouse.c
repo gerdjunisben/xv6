@@ -35,8 +35,20 @@ void consume(char* packet, uint size)
         release(&msBuffer.spinLock);
         acquiresleep(&msBuffer.sleepLock);
     }
-
     else {
+        uint first = msBuffer.buffer[(msBuffer.consumerIndex) % msBuffer.n];
+        if((first&0x08) == 0 || (first&0x80)!=0 || (first&0x40)!=0)
+        {
+            cprintf("Bad packet clearing buffer\n");
+            msBuffer.size=0;
+            msBuffer.consumerIndex=0;
+            msBuffer.producerIndex=0;
+            release(&msBuffer.spinLock);
+            acquiresleep(&msBuffer.sleepLock);
+            return;
+        }
+
+
         //cprintf("Full 3-byte data detected. Consuming...\n");
         for (int i = 0; i < 3; i++) {
             //cprintf("Storing byte 0x%x from buffer index %d to packet index %d\n", msBuffer.buffer[msBuffer.consumerIndex % msBuffer.n], msBuffer.consumerIndex % msBuffer.n, i);
@@ -74,7 +86,7 @@ void produce(uchar msg)
     if (msBuffer.producerIndex % 3 == 0) {
         //cprintf("Supposed to be First Byte of a new 3-Byte Sequence\n");
 
-        if ((msg&0x8) == 0) {
+        if ((msg&0x8) == 0 || (msg&0x80)) {
 
             //cprintf("Invalid First Byte\nDISCARD\n");
 

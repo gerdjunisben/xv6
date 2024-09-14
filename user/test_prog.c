@@ -38,7 +38,14 @@ int main(void)
         readmouse(pkt);
 
         if (pkt[0] & 0x1)
+        {
+            for(int i = 0;i<3;i++)
+            {
+                printf(0,"Part %d:%x\n",i,pkt[i]);
+            }
+            readmouse(pkt);
             break;
+        }
     }
 
     //A tolerance of 20 packets for exit sequence
@@ -74,7 +81,7 @@ int main(void)
             }    
         }
 
-        if (pkt[0] & 0x2) {
+        if (pkt[0] & 0x4) {
             
             if (!intro_msg) {
                 printf(0,"package information: \n");
