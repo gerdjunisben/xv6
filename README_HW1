@@ -1,4 +1,4 @@
-What did we do and why
+What did and why
 
 >Excercise 1: Making the driver
     -Part 1:Decoupling keyboard and mouse
@@ -55,7 +55,45 @@ What did we do and why
                 Finally we init the mouse by writing MSCOMMAND to MSSTATP just like last time but then
                 writing MSINIT to MSDATAP otherwise this is the same as the first one
     -Part 3: Buffering mouse data
+        For the mouse buffer we decided to take a consumer/producer approach (similar to the one learned 
+        at CSE320). We decided to create a msBuffer struct inside the mouse.c file containing a char array of
+        size 9 (to hold 3 complete mouse packets were each complete packet consists of 3 bytes of data), 
+        a uint n that holds the buffer max size, a uint size variable to determine how many bytes of data are 
+        currently available at the buffer, corresponging producer/consumer indexes, and required sleep 
+        and spring locks to sleep consumer process and have secure access to the buffer data without races. 
+        We also provided a produce(uchar msg) function and a consume(char *pkt, uint size) function.
 
+
+        The produce() Function:
+
+        The produce function will be called when a mouse interrupt occurs. We first would check if 
+        the buffer is full. In that case, our function will just discard the packet and return.
+        If not, the packet would be stored at the buffer with the following line whose purpose is 
+        to maintain a circular buffer:
+
+            msBuffer.buffer[(msBuffer.producerIndex++) % msBuffer.n] = msg;
+        
+        Finally, the produce() function would wake-up the consumer process by releaseing the sleepLock in the msBuffer struct. 
+        
+        After some testing, we realized that the packets where missaligned. To fix it we did the following:
+            - We noticed that some ACK packets on startup were being processed by the produce function, causing
+            them to get stored at the buffer. We simply added an if statement to discard those.
+
+            - We also implemented a sanity check where the 3rd byte (0x8) of the first mouse packet of each 3 sequence should be set.
+            Else, we discard packets to perform a propper alignment.
+
+        The consume() Function:
+
+        Every time the consumer function is called, it will verify the size of the pointer passed as an argument, so if its size is less than
+        3, the consumer won't pass any packet. After that, it will verify how many bytes of data are available at the buffer by using the
+        size variable. If there are less than 3 bytes of data, the consumer will sleep until it is awakened by the produce function.
+        The purpose of this implementation is to reduce code complexity by preventing use of incomplete mouse packages. Therefore, when a 
+        full sequence of three bytes of data is detected, the produce function will wake the consumer up, and this one will copy the next 3 bytes
+        from the consumer index to the pointer preserving the order of the packets in the buffer. 
+
+    - Exercise 2: System Call
+
+    
 
 
 How to test
