@@ -18,12 +18,12 @@ static struct {
 void consume(char* packet, uint size)
 {
     acquire(&msBuffer.spinLock);
-    cprintf("Consuming on pointer %p of size %d\n", packet, size);
+    //cprintf("Consuming on pointer %p of size %d\n", packet, size);
 
     //if there isn't enough space don't bother
     if(size < 3)
     {
-        cprintf("Unsufficient Pointer Size\n");
+        //cprintf("Unsufficient Pointer Size\n");
         release(&msBuffer.spinLock);
         return;
     }
@@ -31,15 +31,15 @@ void consume(char* packet, uint size)
     //if there isn't enough in the buffer sleep until then
     if(msBuffer.size < 3)
     {
-        cprintf("Not enough data on buffer\nCONSUMER SLEEPING\n");
+        //cprintf("Not enough data on buffer\nCONSUMER SLEEPING\n");
         release(&msBuffer.spinLock);
         acquiresleep(&msBuffer.sleepLock);
     }
 
     else {
-        cprintf("Full 3-byte data detected. Consuming...\n");
+        //cprintf("Full 3-byte data detected. Consuming...\n");
         for (int i = 0; i < 3; i++) {
-            cprintf("Storing byte 0x%x from buffer index %d to packet index %d\n", msBuffer.buffer[msBuffer.consumerIndex % msBuffer.n], msBuffer.consumerIndex % msBuffer.n, i);
+            //cprintf("Storing byte 0x%x from buffer index %d to packet index %d\n", msBuffer.buffer[msBuffer.consumerIndex % msBuffer.n], msBuffer.consumerIndex % msBuffer.n, i);
             packet[i] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
         }
             
@@ -55,37 +55,46 @@ void produce(uchar msg)
 {
     acquire(&msBuffer.spinLock);
     
-    cprintf("Producing mouse packet 0x%x\n", msg);
+    //cprintf("Producing mouse packet 0x%x\n", msg);
     //ACK is being 'produced' at boot. This should handle it
-    if(msg == ACK || msBuffer.size >= msBuffer.n) {
-        cprintf("ACK or BUFF FULL\nDISCARDED\n");
+    if(msg == ACK) {
+        //cprintf("ACK\nDISCARDED\n");
         release(&msBuffer.spinLock);
         return;
     }
 
+    // "flush" buffer
+    if (msBuffer.size >= msBuffer.n) {
+        msBuffer.consumerIndex = 0;
+        msBuffer.producerIndex = 0;
+        msBuffer.size = 0;
+    }
+
     //sanity check for first byte
     if (msBuffer.producerIndex % 3 == 0) {
-        cprintf("Supposed to be First Byte of a new 3-Byte Sequence\n");
+        //cprintf("Supposed to be First Byte of a new 3-Byte Sequence\n");
 
-        if ((msg&0x8) != 0) {
-            cprintf("Valid First byte, ");
-        }
+        if ((msg&0x8) == 0) {
 
-        else {
-            cprintf("Invalid First Byte\nDISCARD\n");
+            //cprintf("Invalid First Byte\nDISCARD\n");
 
             release(&msBuffer.spinLock);
             return;
+
+        }
+
+        else {
+            //cprintf("Valid First-Byte, ");
         }
     }
 
-    cprintf("Storing byte 0x%x at index %d\n", msg, msBuffer.producerIndex);
+    //cprintf("Storing byte 0x%x at index %d\n", msg, msBuffer.producerIndex);
     msBuffer.buffer[(msBuffer.producerIndex++) % msBuffer.n] = msg;
     msBuffer.size++;
 
     //wake up consumer when there is a full packet
     if(msBuffer.size >= 3) {
-        cprintf("3-byte sequence detected.\nAWAKENING CONSUMER\n");
+        //cprintf("3-byte sequence detected.\nAWAKENING CONSUMER\n");
         releasesleep(&msBuffer.sleepLock);
     }
         
@@ -93,7 +102,6 @@ void produce(uchar msg)
 }
 
 int readmouse(char *pkt) {
-
     consume(pkt, 3);
     return 0;
 }
@@ -136,16 +144,16 @@ void mouseinit(void)
         st = inb(MSDATAP);
         if(st != ACK)
         {
-            cprintf("No ACK?\n");
+            //cprintf("No ACK?\n");
         }
         else
         {
-            cprintf("ACK\n");
+            //cprintf("ACK\n");
         }
-        cprintf("Ticks since start %d\n",timeout);
+        //cprintf("Ticks since start %d\n",timeout);
         if(timeout >=100)
         {
-            cprintf("failure timeout\n");
+            //cprintf("failure timeout\n");
             break;
         }
     }while(st != ACK);
@@ -156,16 +164,16 @@ void mouseinit(void)
         st = inb(MSDATAP);
         if(st != TESTPASS)
         {
-            cprintf("FAILED\n");
+            //cprintf("FAILED\n");
         }
         else
         {
-            cprintf("PASSED\n");
+            //cprintf("PASSED\n");
         }   
-        cprintf("Ticks since start %d\n",timeout);
+        //cprintf("Ticks since start %d\n",timeout);
         if(timeout >=100)
         {
-            cprintf("failure timeout\n");
+            //cprintf("failure timeout\n");
             break;
         }
     }while(st!=TESTPASS);
@@ -180,16 +188,16 @@ void mouseinit(void)
         st = inb(MSDATAP);
         if(st != ACK)
         {
-            cprintf("No ACK?\n");
+            //cprintf("No ACK?\n");
         }
         else
         {
-            cprintf("ACK\n");
+            //cprintf("ACK\n");
         }
-        cprintf("Ticks since start %d\n",timeout);
+        //cprintf("Ticks since start %d\n",timeout);
         if(timeout >=100)
         {
-            cprintf("failure timeout\n");
+            //cprintf("failure timeout\n");
             break;
         }
     }while(st != ACK);
