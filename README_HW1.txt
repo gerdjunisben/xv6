@@ -56,7 +56,7 @@ What did and why
                 writing MSINIT to MSDATAP otherwise this is the same as the first one
     -Part 3: Buffering mouse data
         For the mouse buffer we decided to take a consumer/producer approach (similar to the one learned 
-        at CSE320). We decided to create a msBuffer struct inside the mouse.c file containing a char array of
+        at CSE320). We decided to create a msBuffer struct inside the "mouse.c" file containing a char array of
         size 9 (to hold 3 complete mouse packets were each complete packet consists of 3 bytes of data), 
         a uint n that holds the buffer max size, a uint size variable to determine how many bytes of data are 
         currently available at the buffer, corresponging producer/consumer indexes, and required sleep 
@@ -90,10 +90,21 @@ What did and why
 
         Since we had some problems with the alignment of packets, we also make a sanity check inside the consumer function using overflow x and y bits.
         If those are set for some reason in the first byte of the sequence, the entire buffer is reset. This helped to prevent most (if not all) the remaining
-        issues we found with alignment.
+        issues we found with alignment. Add T_IRQ0 + IRQ_MS case to "trap.c" and call the mouse interupt
 
-    - Exercise 2: System Call
+>Exercise 2: System Call
+    This was pretty straight forward you just had to put everything in the right spots. First define SYS_readmouse
+    as 22 in "syscall.h". Now you can add an "extern int sys_readmouse(void);" so that it detects the sys_readmouse
+    method when you make it and add "[SYS_readmouse]    sys_readmouse" to the syscalls array. At this point we
+    just add sys_readmouse to the "sysproc.c" file which takes a pointer using argptr from the syscall args when
+    the syscall occurs and as long as there is no error (the pointer isn't outside the user address space included)
+    it calls readmouse as defined in "mouse.c". The readmouse method simply calls consume as mentioned in buffer
+    and puts the data in the pointer provided.
 
+    At this point you can define IRQ_MS in "traps.h" as 12it'same so we can more easily understand what is happening when we
+    add 12 to the interrupt offset. In the case we call mouseintr from mouse.c which reads from MSSTATP and makes sure 
+    it's from the mouse my checking that bits 0 and 5 aren't 0 then it reads from MSDATAP and puts it in the buffer using
+    produce.
 
 How to Test:
 
@@ -110,3 +121,9 @@ How to Test:
     messages will print. It will also pring the values of the 3 bytes of each package.
 
 Assumptions and design decisions
+
+    Some notable ones is that if a packet is missaligned in the buffer then we should expell the whole buffer.
+    We also assume that the user will simply reinput if they see their input go unrecognized due to a 
+    buffer emptying.
+
+    We also assume that mouse data will be constantly consumed as new mouse data is discarded. 
