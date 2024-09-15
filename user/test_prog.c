@@ -37,13 +37,12 @@ int main(void)
     while(1) {
         readmouse(pkt);
 
-        if (pkt[0] & 0x1)
+        if ((pkt[0] & 0x1) != 0 && (pkt[0]&0x2)==0 && (pkt[0]&0x4)==0)
         {
             for(int i = 0;i<3;i++)
             {
                 printf(0,"Part %d:%x\n",i,pkt[i]);
             }
-            readmouse(pkt);
             break;
         }
     }
