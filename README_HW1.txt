@@ -67,13 +67,10 @@ What did and why
         The produce() Function:
 
         The produce function will be called when a mouse interrupt occurs. We first would check if 
-        the buffer is full. In that case, our function will just discard the packet and return.
-        If not, the packet would be stored at the buffer with the following line whose purpose is 
-        to maintain a circular buffer:
-
-            msBuffer.buffer[(msBuffer.producerIndex++) % msBuffer.n] = msg;
-        
-        Finally, the produce() function would wake-up the consumer process by releaseing the sleepLock in the msBuffer struct. 
+        the buffer is full. In that case, our function will "flush" the buffer by reseting index and size variables. To maintain
+        a circular buffer, each time the producer index reaches the maximum size, it is reset to 0. Then, it will write the received
+        mouse packet to the buffer at the producerIndex position. Finally, the produce() function would wake-up the consumer process 
+        when at least 3 bytes of data have been written to the buffer by releaseing the sleepLock in the msBuffer struct. 
         
         After some testing, we realized that the packets where missaligned. To fix it we did the following:
             - We noticed that some ACK packets on startup were being processed by the produce function, causing
@@ -91,10 +88,25 @@ What did and why
         full sequence of three bytes of data is detected, the produce function will wake the consumer up, and this one will copy the next 3 bytes
         from the consumer index to the pointer preserving the order of the packets in the buffer. 
 
+        Since we had some problems with the alignment of packets, we also make a sanity check inside the consumer function using overflow x and y bits.
+        If those are set for some reason in the first byte of the sequence, the entire buffer is reset. This helped to prevent most (if not all) the remaining
+        issues we found with alignment.
+
     - Exercise 2: System Call
 
 
-How to test
+How to Test:
+
+    To test our mouse driver we have provided a testing program called "test_prog". To initialize it, you need to type "test_prog" in the console
+    and then hit enter. The program will begin by asking you to move your mouse in certain directions following this order: right, left, up, down. 
+    You may pause between each movement to see immediate feedback. This was done to test movement accuracy.
+
+    Then, the program will warn you that you are about to enter an infinite loop. The warning also indicates that to exit the program you 
+    need to click the mouse buttons in the sequefollowing order: Left, Left, Right, Left.   After reading the warning, you will need to click 
+    the left button to start the infinite loop. Feel free to move the mouse as will. 
+
+    Inside the loop, each action performed with the mouse will be  processed, printing out what was going on at that point of time. 
+    For example, if you move the mouse to the right while clicking the left button, you will see that "left button pressed" and "mouse moved to the right" 
+    messages will print. It will also pring the values of the 3 bytes of each package.
 
 Assumptions and design decisions
-

@@ -37,12 +37,9 @@ int main(void)
     while(1) {
         readmouse(pkt);
 
+        // extra sanity checks to avoid input pollusion by missalignment
         if ((pkt[0] & 0x1) != 0 && (pkt[0]&0x2)==0 && (pkt[0]&0x4)==0)
         {
-            for(int i = 0;i<3;i++)
-            {
-                printf(0,"Part %d:%x\n",i,pkt[i]);
-            }
             break;
         }
     }
@@ -50,67 +47,59 @@ int main(void)
     //A tolerance of 20 packets for exit sequence
     int packet_timeout = 0;
 
-    // when first left click detected, OR with 0x1 and << 1. Therefore, bit-1 is now set to 1 (0x2)
-    // when second left click detected, OR with 0x1 and << 1. Therefore bits 2 and 1 are now set to (0x6)
-    // when right click detected. If sequence_flags value is 0x6, then OR with 0x1 and << 1. Now bits 3, 2, and 1 are set (0xE)
-    // for last, left click, if sequence_flags value is 0xE, then exit the loop. else, don't do anything
-    // if packet_timeout reaches 20, sequence_flags is set to 0x0 again.
+    // when first left click detected, << 1 and OR with 0x1. Therefore, bit-0 is now set to 1 (0x1)
+    // when second left click detected, << 1 and OR with 0x1. Therefore bits 1 and 0 are now set to (0x3)
+    // when right click detected. If sequence_flags value is 0x3, then << 1 and OR with 0x1. Now bits 2, 1, and 0 are set (0x7)
+    // for last, left click, if sequence_flags value is 0x7, then exit the loop. else, don't do anything
+    // if packet_timeout reaches 5, sequence_flags is set to 0x0 again.
     uchar sequence_flags = 0x0;
 
+    printf(0, "\n");
+
     while (1) {
+
         readmouse(pkt);
 
-        uchar intro_msg = 0;
+        //  empty packet
+        if (pkt[0] == 0x8 && !pkt[1] && !pkt[2]) {
+            continue;
+        }
 
+        printf(0,"package information: \n");
+        printf(0, "part 1: 0x%x\npart 2: 0x%x\npart 3: 0x%x\n", pkt[0], pkt[1], pkt[2]);
+
+        // left mouse button
         if (pkt[0] & 0x1) {
 
-            if (!intro_msg) {
-                printf(0,"package information: \n");
-                intro_msg = 1;
-            }
+            printf(0, "left button pressed\n");
 
-            printf(0, "left-button pressed\n");
-
-            if (sequence_flags == 0xE)
+            if (sequence_flags == 0x7)
                 break;
 
-            else {
-                sequence_flags = (sequence_flags || 0x1) << 1;
-                printf(0, "sequence_flags set to: 0x%x\n", sequence_flags);
+            else if (sequence_flags == 0x0 || sequence_flags == 0x1) {
+                sequence_flags = sequence_flags << 1;
+                sequence_flags |= 0x1;
             }    
         }
 
-        if (pkt[0] & 0x4) {
-            
-            if (!intro_msg) {
-                printf(0,"package information: \n");
-                intro_msg = 1;
-            }
+        // right mouse button
+        if (pkt[0] & 0x2) {
 
             printf(0, "right-button pressed\n");
 
-            if (sequence_flags == 0x6) {
-                sequence_flags = (sequence_flags || 0x1) << 1;
-                printf(0, "sequence_flags set to: 0x%x\n", sequence_flags);
+            if (sequence_flags == 0x3) {
+                sequence_flags =  sequence_flags << 1;
+                sequence_flags |= 0x1;
             }
         }
 
+        //middle button
         if (pkt[0] & 0x4) {
-
-            if (!intro_msg) {
-                printf(0,"package information: \n");
-                intro_msg = 1;
-            }
-
             printf(0, "middle-button pressed\n");
         }
 
+        //movement in X
         if (pkt[1]) {
-
-            if (!intro_msg) {
-                printf(0,"package information: \n");
-                intro_msg = 1;
-            }
 
             if (pkt[0] & 0x10) {
                 printf(0, "mouse moved to the left\n");
@@ -121,12 +110,8 @@ int main(void)
             }
         }
 
+        //movement in Y
         if (pkt[2]) {
-
-            if (!intro_msg) {
-                printf(0,"package information: \n");
-                intro_msg = 1;
-            }
 
             if (pkt[0] & 0x20) {
                 printf(0, "mouse moved down\n");
@@ -139,18 +124,16 @@ int main(void)
 
         if (sequence_flags) {
             packet_timeout += 1;
-            printf(0, "package_timeout: %d\n", packet_timeout);
         }
 
-        if (packet_timeout >= 20) {
+        if (packet_timeout >= 10) {
             sequence_flags = 0x0;
             packet_timeout = 0;
-            printf(0, "\nsequence_flags reset to: 0x%x\n", sequence_flags);
-            printf(0, "packet_timeout reset to: %d\n", packet_timeout);
         }
-
         printf(0, "\n");
     }
+
+    printf(0, "\n\nthank you for testing our driver\n\n");
 
     return 0;
 }
