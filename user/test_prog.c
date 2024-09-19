@@ -21,6 +21,8 @@ void movement_loop(char *msg, uint sign_bit_position, uint direction, uint delta
 
 int main(void)
 {
+    uint xPos = 0;
+    uint yPos = 0;
     printf(0, "welcome to our test program for the mouse driver\n\nto start, we are going to ask you to move your mouse in different directions\n\n");
 
     movement_loop("please move your mouse to the right\n", 4, 0, 1);
@@ -57,7 +59,6 @@ int main(void)
     printf(0, "\n");
 
     while (1) {
-
         readmouse(pkt);
 
         //  empty packet
@@ -65,9 +66,27 @@ int main(void)
             continue;
         }
 
-        printf(0,"package information: \n");
-        printf(0, "part 1: 0x%x\npart 2: 0x%x\npart 3: 0x%x\n", pkt[0], pkt[1], pkt[2]);
+        //printf(0,"package information: \n");
+        //printf(0, "part 1: 0x%x\npart 2: 0x%x\npart 3: 0x%x\n", pkt[0], pkt[1], pkt[2]);
+        printf(0,"mouse information: \n");
+        if((pkt[0]&0x10))
+        {
+            xPos += (pkt[1] | 0xFFFFFF00);
+        }
+        else
+        {
+            xPos += pkt[1];
+        }
 
+        if((pkt[0]&0x20))
+        {
+            yPos +=(pkt[2] | 0xFFFFFF00);
+        }
+        else
+        {
+            yPos +=pkt[2];
+        }
+        printf(0,"Mouse postition x : %d, y : %d\n",xPos,yPos);
         // left mouse button
         if (pkt[0] & 0x1) {
 
