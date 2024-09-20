@@ -2,18 +2,57 @@
 #include "kernel/types.h"
 #include "user.h"
 
-void movement_loop(char *msg, uint sign_bit_position, uint direction, uint delta_byte) {
+void movement_loop(char *msg,  uint direction, int* xPos, int* yPos) {
     printf(0, msg);
-
+    int xSens = 1000;
+    int ySens = 1000;
     char pkt[3];
     while (1) {
         readmouse(pkt);
 
-        if (((pkt[0] >> sign_bit_position) & 0x1) != direction)
-            continue;
-        
-        if (pkt[delta_byte] != 0x0)
+        if((pkt[0]&0x10))
+        {
+            *xPos += (pkt[1] | 0xFFFFFF00);
+        }
+        else
+        {
+            *xPos += pkt[1];
+        }
+
+        if((pkt[0]&0x20))
+        {
+            *yPos +=(pkt[2] | 0xFFFFFF00);
+        }
+        else
+        {
+            *yPos +=pkt[2];
+        }
+
+        if(direction == 0 && *xPos>xSens)
+        {
+
+            printf(0,"Right movement accepted, good work!\n");
             break;
+        }
+        else if(direction == 1 && *xPos < (xSens *-1))
+        {
+            printf(0,"Left movement accepted, nice job!\n");
+            break;
+        }
+        else if(direction == 2 && *yPos>ySens)
+        {
+            printf(0,"Up movement accepted, keep it up!\n");
+            break;
+        }
+        else if(direction == 3 && *yPos < (ySens * -1))
+        {
+            printf(0,"Down movement acceptable, that's a wrap!\n");
+            break;
+        }
+        else if((pkt[0]&0x1)==1)
+        {
+            printf(0,"Mouse postition x : %d, y : %d\n",*xPos,*yPos);
+        }
     }
 
     printf(0, "mouse detected\n\n");
@@ -21,14 +60,14 @@ void movement_loop(char *msg, uint sign_bit_position, uint direction, uint delta
 
 int main(void)
 {
-    uint xPos = 0;
-    uint yPos = 0;
-    printf(0, "welcome to our test program for the mouse driver\n\nto start, we are going to ask you to move your mouse in different directions\n\n");
+    int xPos = 0;
+    int yPos = 0;
+    printf(0, "welcome to our test program for the mouse driver\n\nto start, we are going to ask you to move your mouse in different directions\nYou may press left click during the test to print your current position and you position carries over between tests\n\n");
 
-    movement_loop("please move your mouse to the right\n", 4, 0, 1);
-    movement_loop("please move your mouse to the left\n", 4, 1, 1);
-    movement_loop("please move your mouse up\n", 5, 0, 2);
-    movement_loop("please move your mouse down\n", 5, 1, 2);
+    movement_loop("please move your mouse to the right\n", 0,&xPos, &yPos);
+    movement_loop("please move your mouse to the left\n", 1,&xPos, &yPos);
+    movement_loop("please move your mouse up\n",  2,&xPos, &yPos);
+    movement_loop("please move your mouse down\n", 3,&xPos, &yPos);
 
     printf(0, "thanks, now you will enter an infinite loop that will constantly print mouse information\n\n");
     printf(0, "to exit the loop, you need to press the mouse buttons in the following sequence: left left right left\n\n");
@@ -153,6 +192,6 @@ int main(void)
     }
 
     printf(0, "\n\nthank you for testing our driver\n\n");
-
+    exit();
     return 0;
 }

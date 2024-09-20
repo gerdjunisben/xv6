@@ -3,7 +3,6 @@
 #include "x86.h"
 #include "mouse.h"
 #include "spinlock.h"
-#include "sleeplock.h"
 
 static struct {
     char buffer[9];
@@ -11,26 +10,28 @@ static struct {
     int consumerIndex;
     uint n;
     uint size;
-    struct sleeplock sleepLock;
-    struct spinlock spinLock;
 } msBuffer;
+
+static struct {
+    struct spinlock spinLock;
+} msLock;
 
 void consume(char* packet, uint size)
 {
-    acquire(&msBuffer.spinLock);
-
     //if there isn't enough space don't bother
     if(size < 3)
     {
-        release(&msBuffer.spinLock);
         return;
     }
+
+    acquire(&msLock.spinLock);
+    //cprintf("Consume got the lock\n");
 
     //if there isn't enough in the buffer sleep until then
     if(msBuffer.size < 3)
     {
-        release(&msBuffer.spinLock);
-        acquiresleep(&msBuffer.sleepLock);
+        //cprintf("Sleeping consumer index\n");
+        sleep(&msBuffer.consumerIndex,&msLock.spinLock);
     }
     else {
         uint first = msBuffer.buffer[(msBuffer.consumerIndex) % msBuffer.n];
@@ -39,8 +40,8 @@ void consume(char* packet, uint size)
             msBuffer.size=0;
             msBuffer.consumerIndex=0;
             msBuffer.producerIndex=0;
-            release(&msBuffer.spinLock);
-            acquiresleep(&msBuffer.sleepLock);
+            //cprintf("Sleeping consumer index due to shitty packet\n");
+            sleep(&msBuffer.consumerIndex,&msLock.spinLock);
             return;
         }
 
@@ -50,21 +51,22 @@ void consume(char* packet, uint size)
         }
 
         msBuffer.size -= 3;
-        release(&msBuffer.spinLock);
     }
+    //cprintf("Consume releases lock\n");
+    release(&msLock.spinLock);
 
     
 }
 
 void produce(uchar msg)
 {
-    acquire(&msBuffer.spinLock);
-    
     //ACK is being 'produced' at boot. This should handle it
     if(msg == ACK) {
-        release(&msBuffer.spinLock);
         return;
     }
+
+    //cprintf("Produce trying to get lock\n");
+    acquire(&msLock.spinLock);
 
     // "flush" buffer if full
     if (msBuffer.size >= msBuffer.n) {
@@ -81,7 +83,8 @@ void produce(uchar msg)
             msBuffer.size=0;
             msBuffer.consumerIndex=0;
             msBuffer.producerIndex=0;
-            release(&msBuffer.spinLock);
+            //cprintf("Produce releases lock at missalign\n");
+            release(&msLock.spinLock);
             return;
         }
     }
@@ -91,10 +94,12 @@ void produce(uchar msg)
 
     //wake up consumer when there is a full packet
     if(msBuffer.size >= 3) {
-        releasesleep(&msBuffer.sleepLock);
+        //cprintf("Wake up consumer index\n");
+        wakeup(&msBuffer.consumerIndex);
     }
         
-    release(&msBuffer.spinLock);
+    //cprintf("Produce releases lock\n");
+    release(&msLock.spinLock);
 }
 
 int readmouse(char *pkt) {
@@ -105,8 +110,7 @@ int readmouse(char *pkt) {
 void mouseinit(void)
 {
     // buffer init
-    initsleeplock(&msBuffer.sleepLock, "ms_sleeplock");
-    initlock(&msBuffer.spinLock, "ms_sleeplock");
+    initlock(&msLock.spinLock, "ms_sleeplock");
     msBuffer.producerIndex = 0;
     msBuffer.consumerIndex = 0;
     msBuffer.size = 0;
