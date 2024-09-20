@@ -59,8 +59,8 @@ What did and why
         at CSE320). We decided to create a msBuffer struct inside the "mouse.c" file containing a char array of
         size 9 (to hold 3 complete mouse packets were each complete packet consists of 3 bytes of data), 
         a uint n that holds the buffer max size, a uint size variable to determine how many bytes of data are 
-        currently available at the buffer, corresponging producer/consumer indexes, and required sleep 
-        and spring locks to sleep consumer process and have secure access to the buffer data without races. 
+        currently available at the buffer, corresponging producer/consumer indexes, and required spring lock
+        to sleep consumer process and have secure access to the buffer data without races. 
         We also provided a produce(uchar msg) function and a consume(char *pkt, uint size) function.
 
 
@@ -70,13 +70,13 @@ What did and why
         the buffer is full. In that case, our function will "flush" the buffer by reseting index and size variables. To maintain
         a circular buffer, each time the producer index reaches the maximum size, it is reset to 0. Then, it will write the received
         mouse packet to the buffer at the producerIndex position. Finally, the produce() function would wake-up the consumer process 
-        when at least 3 bytes of data have been written to the buffer by releaseing the sleepLock in the msBuffer struct. 
+        when at least 3 bytes of data have been written to the buffer by calling the wakeup() function. 
 
         The consume() Function:
 
         Every time the consumer function is called, it will verify the size of the pointer passed as an argument, so if its size is less than
-        3, the consumer won't pass any packet. Next it aquires the msLock spinlock. After that, it will verify how many bytes of data are available at the buffer by using the
-        size variable. If there are less than 3 bytes of data, the consumer will sleep until it is awakened by the produce function.
+        3, the consumer won't pass any packet. Next it aquires the msLock spinlock. After that, it will verify how many bytes of data are available at the buffer by 
+        using the size variable. If there are less than 3 bytes of data, the consumer will sleep until it is awakened by the produce function.
         The purpose of this implementation is to reduce code complexity by preventing use of incomplete mouse packages. Therefore, when a 
         full sequence of three bytes of data is detected, the produce function will wake the consumer up, and this one will copy the next 3 bytes
         from the consumer index to the pointer preserving the order of the packets in the buffer. 

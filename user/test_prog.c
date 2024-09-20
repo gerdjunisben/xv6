@@ -1,7 +1,7 @@
 #include "kernel/types.h"
 #include "user.h"
-#define xSens 1000
-#define ySens 1000
+#define xSens 100
+#define ySens 100
 
 void movement_loop(char *msg,  uint direction, int* xPos, int* yPos) {
     printf(0, msg);
@@ -9,9 +9,13 @@ void movement_loop(char *msg,  uint direction, int* xPos, int* yPos) {
     while (1) {
         readmouse(pkt);
 
+        int prev_xPos = *xPos;
+        int prev_yPos = *yPos;
+
         if((pkt[0]&0x10))
         {
-            *xPos += (pkt[1] | 0xFFFFFF00);
+            //*xPos += (pkt[1] | 0xFFFFFF00);
+            *xPos -= (pkt[1] * -1);
         }
         else
         {
@@ -20,30 +24,35 @@ void movement_loop(char *msg,  uint direction, int* xPos, int* yPos) {
 
         if((pkt[0]&0x20))
         {
-            *yPos +=(pkt[2] | 0xFFFFFF00);
+            *yPos -= (pkt[2] * -1);
         }
         else
         {
             *yPos +=pkt[2];
         }
 
-        if(direction == 0 && *xPos>xSens)
-        {
+        int delta_x = *xPos - prev_xPos;
+        //printf(0, "delta x: %d\n", delta_x);
+        
+        int delta_y = *yPos - prev_yPos;
+        //printf(0, "delta y: %d\n", delta_y);
 
+        if(direction == 0 && delta_x>xSens)
+        {
             printf(0,"Right movement accepted, good work!\n");
             break;
         }
-        else if(direction == 1 && *xPos < (xSens *-1))
+        else if(direction == 1 && delta_x < (xSens * -1))
         {
             printf(0,"Left movement accepted, nice job!\n");
             break;
         }
-        else if(direction == 2 && *yPos>ySens)
+        else if(direction == 2 && delta_y>ySens)
         {
             printf(0,"Up movement accepted, keep it up!\n");
             break;
         }
-        else if(direction == 3 && *yPos < (ySens * -1))
+        else if(direction == 3 && delta_y < (ySens * -1))
         {
             printf(0,"Down movement acceptable, that's a wrap!\n");
             break;

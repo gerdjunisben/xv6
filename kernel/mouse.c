@@ -40,7 +40,7 @@ void consume(char* packet, uint size)
             msBuffer.size=0;
             msBuffer.consumerIndex=0;
             msBuffer.producerIndex=0;
-            //cprintf("Sleeping consumer index due to shitty packet\n");
+
             sleep(&msBuffer.consumerIndex,&msLock.spinLock);
             return;
         }
