@@ -71,18 +71,11 @@ What did and why
         a circular buffer, each time the producer index reaches the maximum size, it is reset to 0. Then, it will write the received
         mouse packet to the buffer at the producerIndex position. Finally, the produce() function would wake-up the consumer process 
         when at least 3 bytes of data have been written to the buffer by releaseing the sleepLock in the msBuffer struct. 
-        
-        After some testing, we realized that the packets where missaligned. To fix it we did the following:
-            - We noticed that some ACK packets on startup were being processed by the produce function, causing
-            them to get stored at the buffer. We simply added an if statement to discard those.
-
-            - We also implemented a sanity check where the 3rd byte (0x8) of the first mouse packet of each 3 sequence should be set.
-            Else, we discard packets to perform a propper alignment.
 
         The consume() Function:
 
         Every time the consumer function is called, it will verify the size of the pointer passed as an argument, so if its size is less than
-        3, the consumer won't pass any packet. After that, it will verify how many bytes of data are available at the buffer by using the
+        3, the consumer won't pass any packet. Next it aquires the msLock spinlock. After that, it will verify how many bytes of data are available at the buffer by using the
         size variable. If there are less than 3 bytes of data, the consumer will sleep until it is awakened by the produce function.
         The purpose of this implementation is to reduce code complexity by preventing use of incomplete mouse packages. Therefore, when a 
         full sequence of three bytes of data is detected, the produce function will wake the consumer up, and this one will copy the next 3 bytes
@@ -91,6 +84,14 @@ What did and why
         Since we had some problems with the alignment of packets, we also make a sanity check inside the consumer function using overflow x and y bits.
         If those are set for some reason in the first byte of the sequence, the entire buffer is reset. This helped to prevent most (if not all) the remaining
         issues we found with alignment. Add T_IRQ0 + IRQ_MS case to "trap.c" and call the mouse interupt
+
+        After some testing, we realized that the packets where missaligned. To fix it we did the following:
+            - We noticed that some ACK packets on startup were being processed by the produce function, causing
+            them to get stored at the buffer. We simply added an if statement to produce to discard those.
+
+            - We also implemented a sanity check in consume where the 3rd byte (0x8) of the first mouse packet of each 3 sequence should be set
+            and that both overflow bits aren't set because the wiki suggests that means it's likely invalid.
+            Else, we empty the buffer.
 
 >Exercise 2: System Call
     This was pretty straight forward you just had to put everything in the right spots. First define SYS_readmouse
@@ -110,15 +111,17 @@ How to Test:
 
     To test our mouse driver we have provided a testing program called "test_prog". To initialize it, you need to type "test_prog" in the console
     and then hit enter. The program will begin by asking you to move your mouse in certain directions following this order: right, left, up, down. 
-    You may pause between each movement to see immediate feedback. This was done to test movement accuracy.
+    There are sensitivity values defined at the top and the location of the mouse is tracked between
+    each movement. You may click left click during this to track your position, the default is 1000 in the given
+    direction.
 
     Then, the program will warn you that you are about to enter an infinite loop. The warning also indicates that to exit the program you 
     need to click the mouse buttons in the sequefollowing order: Left, Left, Right, Left.   After reading the warning, you will need to click 
     the left button to start the infinite loop. Feel free to move the mouse as will. 
 
-    Inside the loop, each action performed with the mouse will be  processed, printing out what was going on at that point of time. 
+    Inside the loop, each action performed with the mouse will be processed, printing out what was going on at that point of time. 
     For example, if you move the mouse to the right while clicking the left button, you will see that "left button pressed" and "mouse moved to the right" 
-    messages will print. It will also pring the values of the 3 bytes of each package.
+    messages will print. Also the position will be printed after every mouse interrupt.
 
 Assumptions and design decisions
 

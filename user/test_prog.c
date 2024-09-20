@@ -1,11 +1,10 @@
-
 #include "kernel/types.h"
 #include "user.h"
+#define xSens 1000
+#define ySens 1000
 
 void movement_loop(char *msg,  uint direction, int* xPos, int* yPos) {
     printf(0, msg);
-    int xSens = 1000;
-    int ySens = 1000;
     char pkt[3];
     while (1) {
         readmouse(pkt);
