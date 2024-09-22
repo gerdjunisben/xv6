@@ -70,7 +70,7 @@ int main(void)
 {
     int xPos = 0;
     int yPos = 0;
-    printf(0, "welcome to our test program for the mouse driver\n\nto start, we are going to ask you to move your mouse in different directions\nYou may press left click during the test to print your current position and you position carries over between tests\n\n");
+    printf(0, "welcome to our test program for the mouse driver\n\nto start, we are going to ask you to move your mouse in different directions\nYou may press left click during the test to print your current position and your position carries over between tests\n\n");
 
     movement_loop("please move your mouse to the right\n", 0,&xPos, &yPos);
     movement_loop("please move your mouse to the left\n", 1,&xPos, &yPos);
@@ -199,7 +199,7 @@ int main(void)
         printf(0, "\n");
     }
 
-    printf(0, "\n\nthank you for testing our driver\n\n");
+    printf(0, "\n\nthank you for testing our driver\n");
     exit();
     return 0;
 }
