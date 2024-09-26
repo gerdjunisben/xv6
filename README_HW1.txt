@@ -130,3 +130,5 @@ Assumptions and design decisions
     buffer emptying.
 
     We also assume that mouse data will be constantly consumed as new mouse data is discarded. 
+
+    We do not assume the condition is still true after we sleep so we check it again

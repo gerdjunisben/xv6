@@ -27,31 +27,31 @@ void consume(char* packet, uint size)
     acquire(&msLock.spinLock);
     //cprintf("Consume got the lock\n");
 
-    //if there isn't enough in the buffer sleep until then
-    if(msBuffer.size < 3)
+    //if there isn't enough in the buffer or if we need to empty the buffer due to misalignment sleep until then 
+    uint first = msBuffer.buffer[(msBuffer.consumerIndex) % msBuffer.n];
+    while(msBuffer.size < 3 || ((first&0x08) == 0 || (first&0x80) || (first&0x40)))
     {
-        //cprintf("Sleeping consumer index\n");
-        sleep(&msBuffer.consumerIndex,&msLock.spinLock);
-    }
-    else {
-        uint first = msBuffer.buffer[(msBuffer.consumerIndex) % msBuffer.n];
-        if((first&0x08) == 0 || (first&0x80)!=0 || (first&0x40)!=0)
+        if(msBuffer.size<3)
         {
+            sleep(&msBuffer.consumerIndex,&msLock.spinLock);
+        }
+        else{
             msBuffer.size=0;
             msBuffer.consumerIndex=0;
             msBuffer.producerIndex=0;
 
             sleep(&msBuffer.consumerIndex,&msLock.spinLock);
-            return;
+            first = msBuffer.buffer[(msBuffer.consumerIndex) % msBuffer.n];
+    
         }
-
-        // store each byte of data in order inside the pkt pointer
-        for (int i = 0; i < 3; i++) {
-            packet[i] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
-        }
-
-        msBuffer.size -= 3;
     }
+
+    // store each byte of data in order inside the pkt pointer
+    for (int i = 0; i < 3; i++) {
+        packet[i] = msBuffer.buffer[(msBuffer.consumerIndex++) % msBuffer.n];
+    }
+
+    msBuffer.size -= 3;
     //cprintf("Consume releases lock\n");
     release(&msLock.spinLock);
 
@@ -75,19 +75,6 @@ void produce(uchar msg)
         msBuffer.size = 0;
     }
 
-    //sanity check for first byte
-    if (msBuffer.producerIndex % 3 == 0) {
-
-        // if missalignment detected, clear buffer
-        if ((msg&0x8) == 0 || (msg&0x80)) {
-            msBuffer.size=0;
-            msBuffer.consumerIndex=0;
-            msBuffer.producerIndex=0;
-            //cprintf("Produce releases lock at missalign\n");
-            release(&msLock.spinLock);
-            return;
-        }
-    }
 
     msBuffer.buffer[(msBuffer.producerIndex++) % msBuffer.n] = msg;
     msBuffer.size++;
