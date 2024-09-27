@@ -3,6 +3,7 @@
 #include "kernel/types.h"
 #include "kernel/fcntl.h"
 #include "user.h"
+#include "init.h"
 
 // Parsed command representation
 #define EXEC  1
@@ -142,13 +143,13 @@ getcmd(char *buf, int nbuf)
 }
 
 int
-main(void)
+main(int argc, char* argv[])
 {
   static char buf[100];
   int fd;
 
   // Ensure that three file descriptors are open.
-  while((fd = open("console", O_RDWR)) >= 0){
+  while((fd = open(argv[1], O_RDWR)) >= 0){
     if(fd >= 3){
       close(fd);
       break;
