@@ -13,11 +13,15 @@
 #include "x86.h"
 
 #define COM1    0x3f8
+#define COM2    0x2f8
+
+const uint comPorts[] = {COM1,COM2};
 
 static int uart;    // is there a uart?
 
 static struct {
-  struct spinlock lock;
+  struct spinlock lock1;
+  struct spinlock lock2;
 } com;
 
 
@@ -27,9 +31,10 @@ static struct {
 #define BACKSPACE 0x100
 
 void
-uartputc(int c)
+uartputc(int c,int comNumber)
 {
   int i;
+  uint port =comPorts[comNumber];
 
   if(!uart)
     return;
@@ -38,83 +43,96 @@ uartputc(int c)
   // output overrun, as indicated by log messages in the
   // Bochs log file.  This is with microdelay() having an
   // empty body and ignoring its argument.
-  for(i = 0; i < 1000 && !(inb(COM1+5) & 0x20); i++)
+  for(i = 0; i < 1000 && !(inb(port+5) & 0x20); i++)
     microdelay(10);
   if(c == BACKSPACE){
-    outb(COM1+0, '\b');
-    for(i = 0; i < 1000 && !(inb(COM1+5) & 0x20); i++)
+    outb(port+0, '\b');
+    for(i = 0; i < 1000 && !(inb(port+5) & 0x20); i++)
       microdelay(10);
-    outb(COM1+0, ' ');
-    for(i = 0; i < 1000 && !(inb(COM1+5) & 0x20); i++)
+    outb(port+0, ' ');
+    for(i = 0; i < 1000 && !(inb(port+5) & 0x20); i++)
       microdelay(10);
-    outb(COM1+0, '\b');
+    outb(port+0, '\b');
   } else
   {
-     outb(COM1+0, c);
+     outb(port+0, c);
   }
 }
 
 
 static int
-uartgetc(void)
+uartgetc(int comNumber)
 {
+  uint port =comPorts[comNumber];
   if(!uart)
     return -1;
-  if(!(inb(COM1+5) & 0x01))
+  if(!(inb(port+5) & 0x01))
     return -1;
-  return inb(COM1+0);
+  return inb(port+0);
 }
 
 #define INPUT_BUF 128
-struct {
+struct comBuffer{
   char buf[INPUT_BUF];
   uint r;  // Read index
   uint w;  // Write index
   uint e;  // Edit index
-} comInput;
+};
+
+struct comBuffer comBuffers[2];
 
 #define C(x)  ((x)-'@')  // Control-x
 
 void
-uartintr(void)
+uartintr(int comNumber)
 {
   //cprintf("uartintr\n");
   int c, doprocdump = 0;
+  struct spinlock* lock;
+  if(comNumber == 1)
+  {
+    lock = &(com.lock1);
+  }
+  else
+  {
+    lock = &(com.lock2);
+  }
 
-  acquire(&com.lock);
-  while((c = uartgetc()) >= 0){
+  acquire(&(*lock));
+  comNumber-=1;
+  while((c = uartgetc(comNumber)) >= 0){
     switch(c){
     case C('P'):  // Process listing.
       // procdump() locks cons.lock indirectly; invoke later
       doprocdump = 1;
       break;
     case C('U'):  // Kill line.
-      while(comInput.e != comInput.w &&
-            comInput.buf[(comInput.e-1) % INPUT_BUF] != '\n'){
-        comInput.e--;
-        uartputc(BACKSPACE);
+      while(comBuffers[comNumber].e != comBuffers[comNumber].w &&
+            comBuffers[comNumber].buf[(comBuffers[comNumber].e-1) % INPUT_BUF] != '\n'){
+        comBuffers[comNumber].e--;
+        uartputc(BACKSPACE,comNumber);
       }
       break;
     case C('H'): case '\x7f':  // Backspace
-      if(comInput.e != comInput.w){
-        comInput.e--;
-        uartputc(BACKSPACE);
+      if(comBuffers[comNumber].e != comBuffers[comNumber].w){
+        comBuffers[comNumber].e--;
+        uartputc(BACKSPACE,comNumber);
       }
       break;
     default:
-      if(c != 0 && comInput.e-comInput.r < INPUT_BUF){
+      if(c != 0 && comBuffers[comNumber].e-comBuffers[comNumber].r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
-        comInput.buf[comInput.e++ % INPUT_BUF] = c;
-        uartputc(c);
-        if(c == '\n' || c == C('D') || comInput.e == comInput.r+INPUT_BUF){
-          comInput.w = comInput.e;
-          wakeup(&comInput.r);
+        comBuffers[comNumber].buf[comBuffers[comNumber].e++ % INPUT_BUF] = c;
+        uartputc(c,comNumber);
+        if(c == '\n' || c == C('D') || comBuffers[comNumber].e == comBuffers[comNumber].r+INPUT_BUF){
+          comBuffers[comNumber].w = comBuffers[comNumber].e;
+          wakeup(&comBuffers[comNumber].r);
         }
       }
       break;
     }
   }
-  release(&com.lock);
+  release(&(*lock));
   if(doprocdump) {
     procdump();  // now call procdump() wo. cons.lock held
   }
@@ -127,23 +145,34 @@ uartread(struct inode *ip, char *dst, int n)
   int c;
 
   iunlock(ip);
+  int comNumber = ip->minor;
+  struct spinlock* lock;
+  if(comNumber == 1)
+  {
+    lock = &(com.lock1);
+  }
+  else 
+  {
+    lock = &(com.lock2);
+  }
+  comNumber-=1;
   target = n;
-  acquire(&com.lock);
+  acquire(&(*lock));
   while(n > 0){
-    while(comInput.r == comInput.w){
+    while(comBuffers[comNumber].r == comBuffers[comNumber].w){
       if(myproc()->killed){
-        release(&com.lock);
+        release(&(*lock));
         ilock(ip);
         return -1;
       }
-      sleep(&comInput.r, &com.lock);
+      sleep(&comBuffers[comNumber].r, &(*lock));
     }
-    c = comInput.buf[comInput.r++ % INPUT_BUF];
+    c = comBuffers[comNumber].buf[comBuffers[comNumber].r++ % INPUT_BUF];
     if(c == C('D')){  // EOF
       if(n < target){
         // Save ^D for next time, to make sure
         // caller gets a 0-byte result.
-        comInput.r--;
+        comBuffers[comNumber].r--;
       }
       break;
     }
@@ -152,7 +181,7 @@ uartread(struct inode *ip, char *dst, int n)
     if(c == '\n')
       break;
   }
-  release(&com.lock);
+  release(&(*lock));
   ilock(ip);
 
   return target - n;
@@ -164,50 +193,74 @@ uartwrite(struct inode *ip, char *buf, int n)
   int i;
 
   iunlock(ip);
-  acquire(&com.lock);
+  struct spinlock* lock;
+  if(ip->minor == 1)
+  {
+    lock = &(com.lock1);
+  }
+  else 
+  {
+    lock = &(com.lock2);
+  }
+  acquire(&(*lock));
   for(i = 0; i < n; i++)
-    uartputc(buf[i] & 0xff);
-  release(&com.lock);
+    uartputc(buf[i] & 0xff, (ip->minor - 1));
+  release(&(*lock));
   ilock(ip);
 
   return n;
 }
 
 void
-uartinit(void)
+uartinit(int comNumber)
 {
   char *p;
-  initlock(&com.lock,"COM1");
+  if(comNumber == 1)
+  {
+    cprintf("Starting up COM1\n");
+    initlock(&com.lock1,"COM1");
+  }
+  else
+  {
+    cprintf("Starting up COM2\n");
+    initlock(&com.lock2,"COM2");
+  }
 
-  
+  int port = comPorts[comNumber-1];
 
   // Turn off the FIFO
-  outb(COM1+2, 0);
+  outb(port+2, 0);
 
   // 9600 baud, 8 data bits, 1 stop bit, parity off.
-  outb(COM1+3, 0x80);    // Unlock divisor
-  outb(COM1+0, 115200/9600);
-  outb(COM1+1, 0);
-  outb(COM1+3, 0x03);    // Lock divisor, 8 data bits.
-  outb(COM1+4, 0);
-  outb(COM1+1, 0x01);    // Enable receive interrupts.
+  outb(port+3, 0x80);    // Unlock divisor
+  outb(port+0, 115200/9600);
+  outb(port+1, 0);
+  outb(port+3, 0x03);    // Lock divisor, 8 data bits.
+  outb(port+4, 0);
+  outb(port+1, 0x01);    // Enable receive interrupts.
 
   // If status is 0xFF, no serial port.
-  if(inb(COM1+5) == 0xFF)
+  if(inb(port+5) == 0xFF)
     return;
   uart = 1;
 
   // Acknowledge pre-existing interrupt conditions;
   // enable interrupts.
-  inb(COM1+2);
-  inb(COM1+0);
-  ioapicenable(IRQ_COM1, 0);
+  inb(port+2);
+  inb(port+0);
+  if(comNumber == 1)
+  {
+    ioapicenable(IRQ_COM1, 0);
+  }
+  else if(comNumber == 2)
+  {
+    ioapicenable(IRQ_COM2, 0);
+  }
 
-  cprintf("setting write and read for uart\n");
   devsw[COM].write = uartwrite;
   devsw[COM].read = uartread;
 
   // Announce that we're here.
   for(p="xv6...\n"; *p; p++)
-    uartputc(*p);
+    uartputc(*p,(comNumber-1));
 }

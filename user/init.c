@@ -27,6 +27,8 @@ main(void)
     close(2);
     dup(fd);
 
+    close(fd);
+
     argv[1] = devices[i];
 
     pid = fork();

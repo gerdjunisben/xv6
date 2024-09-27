@@ -307,7 +307,6 @@ consoleinit(void)
 {
   initlock(&cons.lock, "console");
 
-  cprintf("setting write and read for console\n");
   devsw[CONSOLE].write = consolewrite;
   devsw[CONSOLE].read = consoleread;
   cons.locking = 1;
