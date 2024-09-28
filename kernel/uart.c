@@ -53,7 +53,12 @@ uartputc(int c,int comNumber)
     for(i = 0; i < 1000 && !(inb(port+5) & 0x20); i++)
       microdelay(10);
     outb(port+0, '\b');
-  } else
+  } 
+  else if(c=='\n') {
+    outb(port+0, '\r');
+    outb(port+0, '\n');
+  }
+  else
   {
      outb(port+0, c);
   }

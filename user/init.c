@@ -12,6 +12,7 @@ int
 main(void)
 {
   int pid, wpid;
+  int pids[3];
 
   for(int i = 0;i<deviceCount;i++)
   {
@@ -27,11 +28,13 @@ main(void)
     close(2);
     dup(fd);
 
+
     close(fd);
 
     argv[1] = devices[i];
 
     pid = fork();
+    pids[i] = pid;
     if(pid < 0){
       printf(1, "init: fork failed\n");
       exit();
@@ -47,6 +50,43 @@ main(void)
 
   for(;;){
     while((wpid=wait()) >= 0 && wpid != pid)
-      printf(1, "zombie!\n");
+    {
+        for(int i =1;i<deviceCount;i++)
+        {
+          if(wpid == pids[i])
+          {
+            int fd = open(devices[i], O_RDWR);
+            if(fd < 0){
+              mknod(devices[i], majorNums[i], minorNums[i]);
+              fd = open(devices[i], O_RDWR);
+            }
+            close(0);
+            dup(fd);
+            close(1);
+            dup(fd);
+            close(2);
+            dup(fd);
+
+
+            close(fd);
+
+            argv[1] = devices[i];
+
+            pid = fork();
+            pids[i] = pid;
+            if(pid < 0){
+              printf(1, "init: fork failed\n");
+              exit();
+            }
+            if(pid == 0)
+            {
+              printf(1, "init: starting sh\n");
+              exec("sh", argv);
+              printf(1, "init: exec sh failed\n");
+              exit();
+            }
+          }
+        }
+    }
   }
 }
