@@ -21,27 +21,31 @@ main(void)
       mknod(devices[i], majorNums[i], minorNums[i]);
       fd = open(devices[i], O_RDWR);
     }
-    close(0);
-    dup(fd);
-    close(1);
-    dup(fd);
-    close(2);
-    dup(fd);
 
-
-    close(fd);
-
+    //added an arg to shell so that we check that the fd for the current device
+    //exists rather than just checking console fd existance
     argv[1] = devices[i];
 
     pid = fork();
     pids[i] = pid;
     if(pid < 0){
+      close(fd);
       printf(1, "init: fork failed\n");
       exit();
     }
     if(pid == 0)
     {
-      printf(1, "init: starting sh\n");
+      printf(fd, "init: starting sh\n");
+
+      close(0);
+      dup(fd);
+      close(1);
+      dup(fd);
+      close(2);
+      dup(fd);
+
+      close(fd);
+
       exec("sh", argv);
       printf(1, "init: exec sh failed\n");
       exit();
@@ -60,27 +64,29 @@ main(void)
               mknod(devices[i], majorNums[i], minorNums[i]);
               fd = open(devices[i], O_RDWR);
             }
-            close(0);
-            dup(fd);
-            close(1);
-            dup(fd);
-            close(2);
-            dup(fd);
-
-
-            close(fd);
 
             argv[1] = devices[i];
 
             pid = fork();
             pids[i] = pid;
             if(pid < 0){
+              close(fd);
               printf(1, "init: fork failed\n");
               exit();
             }
             if(pid == 0)
             {
-              printf(1, "init: starting sh\n");
+              printf(fd, "init: starting sh\n");
+
+              close(0);
+              dup(fd);
+              close(1);
+              dup(fd);
+              close(2);
+              dup(fd);
+
+              close(fd);
+
               exec("sh", argv);
               printf(1, "init: exec sh failed\n");
               exit();

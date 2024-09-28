@@ -12,37 +12,45 @@
 #include "proc.h"
 #include "x86.h"
 
+#define COMCount  2
 #define COM1    0x3f8
 #define COM2    0x2f8
+#define BACKSPACE 0x100
 
-const uint comPorts[] = {COM1,COM2};
+#define C(x)  ((x)-'@')  // Control-x
+
+#define INPUT_BUF 128
+struct comBuffer{
+  char buf[INPUT_BUF];
+  uint r;  // Read index
+  uint w;  // Write index
+  uint e;  // Edit index
+};
 
 static int uart;    // is there a uart?
 
+//these are the locks for com 1 and 2 respectively
 static struct {
   struct spinlock lock1;
   struct spinlock lock2;
 } com;
 
+//this has a buffer for each com
+struct comBuffer comBuffers[COMCount];
 
+//this is for quick access of the port number
+const uint comPorts[] = {COM1,COM2};
 
-
-
-#define BACKSPACE 0x100
 
 void
 uartputc(int c,int comNumber)
 {
+  //they do delays for bosch doesn't really matter to us but let's do it anyway
   int i;
-  uint port =comPorts[comNumber];
 
   if(!uart)
     return;
-  // On my test system, Bochs (running at 1M instr/sec)
-  // requires between 500 and 1000 iterations to avoid
-  // output overrun, as indicated by log messages in the
-  // Bochs log file.  This is with microdelay() having an
-  // empty body and ignoring its argument.
+  uint port =comPorts[comNumber];
   for(i = 0; i < 1000 && !(inb(port+5) & 0x20); i++)
     microdelay(10);
   if(c == BACKSPACE){
@@ -56,6 +64,7 @@ uartputc(int c,int comNumber)
   } 
   else if(c=='\n') {
     outb(port+0, '\r');
+    microdelay(10);
     outb(port+0, '\n');
   }
   else
@@ -68,25 +77,15 @@ uartputc(int c,int comNumber)
 static int
 uartgetc(int comNumber)
 {
-  uint port =comPorts[comNumber];
   if(!uart)
     return -1;
+  uint port =comPorts[comNumber];
   if(!(inb(port+5) & 0x01))
     return -1;
   return inb(port+0);
 }
 
-#define INPUT_BUF 128
-struct comBuffer{
-  char buf[INPUT_BUF];
-  uint r;  // Read index
-  uint w;  // Write index
-  uint e;  // Edit index
-};
 
-struct comBuffer comBuffers[2];
-
-#define C(x)  ((x)-'@')  // Control-x
 
 void
 uartintr(int comNumber)
@@ -96,11 +95,18 @@ uartintr(int comNumber)
   struct spinlock* lock;
   if(comNumber == 1)
   {
+    //cprintf("COM1 intr\n");
     lock = &(com.lock1);
+  }
+  else if(comNumber == 2)
+  {
+    //cprintf("COM2 intr\n");
+    lock = &(com.lock2);
   }
   else
   {
-    lock = &(com.lock2);
+    procdump();
+    return;
   }
 
   acquire(&(*lock));
@@ -152,13 +158,22 @@ uartread(struct inode *ip, char *dst, int n)
   iunlock(ip);
   int comNumber = ip->minor;
   struct spinlock* lock;
+
+  //normally I'd make this a loop but I'm pretty sure I save in overhead,
+  //may lose it in other places but the thought is what matter
   if(comNumber == 1)
   {
+    //cprintf("COM1 read\n");
     lock = &(com.lock1);
   }
-  else 
+  else if(comNumber == 2)
   {
+    //cprintf("COM2 read\n");
     lock = &(com.lock2);
+  }
+  else
+  {
+    return -1;
   }
   comNumber-=1;
   target = n;
@@ -201,11 +216,17 @@ uartwrite(struct inode *ip, char *buf, int n)
   struct spinlock* lock;
   if(ip->minor == 1)
   {
+    //cprintf("COM1 write\n");
     lock = &(com.lock1);
   }
-  else 
+  else if(ip->minor == 2)
   {
+    //cprintf("COM2 write\n");
     lock = &(com.lock2);
+  }
+  else
+  {
+    return -1;
   }
   acquire(&(*lock));
   for(i = 0; i < n; i++)
@@ -222,13 +243,18 @@ uartinit(int comNumber)
   char *p;
   if(comNumber == 1)
   {
-    cprintf("Starting up COM1\n");
+    //cprintf("Starting up COM1\n");
     initlock(&com.lock1,"COM1");
+  }
+  else if(comNumber == 2)
+  {
+    //cprintf("Starting up COM2\n");
+    initlock(&com.lock2,"COM2");
   }
   else
   {
-    cprintf("Starting up COM2\n");
-    initlock(&com.lock2,"COM2");
+    //cprintf("Starting invalid COM\n");
+    return;
   }
 
   int port = comPorts[comNumber-1];
@@ -253,6 +279,8 @@ uartinit(int comNumber)
   // enable interrupts.
   inb(port+2);
   inb(port+0);
+
+  //at this point it's impossible for it to be any COM but a valid one so no else
   if(comNumber == 1)
   {
     ioapicenable(IRQ_COM1, 0);
@@ -261,7 +289,9 @@ uartinit(int comNumber)
   {
     ioapicenable(IRQ_COM2, 0);
   }
+  
 
+  //I see no harm in setting it multiple times but I will keep an eye on this
   devsw[COM].write = uartwrite;
   devsw[COM].read = uartread;
 
