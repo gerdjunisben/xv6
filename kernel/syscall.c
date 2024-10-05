@@ -17,10 +17,17 @@
 int
 fetchint(uint addr, int *ip)
 {
-  struct proc *curproc = myproc();
-
-  if(addr >= curproc->sz || addr+4 > curproc->sz)
+  //struct proc *curproc = myproc();
+  //uint stackTop = KERNBASE-4;
+  //uint stackBot = stackTop- curproc->stackSize;
+  //if(curproc->stackSize == 0)
+    //stackBot = stackTop- (4*PGSIZE);
+  /*
+  if((addr > stackTop || addr< stackBot) && (addr > curproc->sz || addr< curproc->sz))
+  {
+    cprintf("Fetchint fail\n");
     return -1;
+  }*/
   *ip = *(int*)(addr);
   return 0;
 }
@@ -32,12 +39,20 @@ int
 fetchstr(uint addr, char **pp)
 {
   char *s, *ep;
-  struct proc *curproc = myproc();
+  //struct proc *curproc = myproc();
 
-  if(addr >= curproc->sz)
+  uint stackTop = KERNBASE-4;
+  //uint stackBot = stackTop- curproc->stackSize;
+  //if(curproc->stackSize == 0)
+    //stackBot = stackTop- (4*PGSIZE);
+  /*
+  if(addr >= stackTop || addr<= stackBot)
+  {
+    cprintf("Fetchstr fail\n");
     return -1;
+  }*/
   *pp = (char*)addr;
-  ep = (char*)curproc->sz;
+  ep = (char*)stackTop;
   for(s = *pp; s < ep; s++){
     if(*s == 0)
       return s - *pp;
@@ -59,12 +74,20 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
+  /*
   struct proc *curproc = myproc();
- 
+  uint stackTop = KERNBASE-4;
+  uint stackBot = stackTop- curproc->stackSize;*/
+
   if(argint(n, &i) < 0)
     return -1;
-  if(size < 0 || (uint)i >= curproc->sz || (uint)i+size > curproc->sz)
+    /*
+  if(size < 0 || (uint)i > stackTop || (uint)i+size > stackTop ||
+  (uint)i < stackBot || (uint)i+size <stackBot)
+  {
+    cprintf("argptr fail\n");
     return -1;
+  }*/
   *pp = (char*)i;
   return 0;
 }
@@ -78,7 +101,10 @@ argstr(int n, char **pp)
 {
   int addr;
   if(argint(n, &addr) < 0)
+   {
+    cprintf("argstr fail\n");
     return -1;
+  }
   return fetchstr(addr, pp);
 }
 

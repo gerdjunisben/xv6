@@ -52,6 +52,18 @@ trap(struct trapframe *tf)
   }
 
   switch(tf->trapno){
+  case T_PGFLT:
+    cprintf("Page fault\n");
+    cprintf("  eip: 0x%x\n", tf->eip);
+    cprintf("  esp: 0x%x\n", tf->esp);
+    cprintf("  cs: 0x%x\n", tf->cs);
+    cprintf("  ds: 0x%x\n", tf->ds);
+    cprintf("  es: 0x%x\n", tf->es);
+    cprintf("  ss: 0x%x\n", tf->ss);
+    cprintf("  eflags: 0x%x\n", tf->eflags);
+    cprintf("  trapno: %d\n", tf->trapno);
+    panic("Woopsie");
+    break;
   case T_IRQ0 + IRQ_TIMER:
     if(cpuid() == 0){
       acquire(&tickslock);

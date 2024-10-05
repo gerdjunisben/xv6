@@ -14,6 +14,7 @@ main(void)
   int pid, wpid;
   int pids[3];
 
+
   for(int i = 0;i<deviceCount;i++)
   {
     int fd = open(devices[i], O_RDWR);

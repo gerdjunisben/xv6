@@ -192,7 +192,8 @@ fork(void)
   }
 
   // Copy process state from proc.
-  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
+  //cprintf("The fucking stack size %d\n",curproc->stackSize);
+  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz, curproc->stackSize)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
