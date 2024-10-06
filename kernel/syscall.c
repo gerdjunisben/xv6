@@ -17,17 +17,18 @@
 int
 fetchint(uint addr, int *ip)
 {
-  //struct proc *curproc = myproc();
-  //uint stackTop = KERNBASE-4;
-  //uint stackBot = stackTop- curproc->stackSize;
-  //if(curproc->stackSize == 0)
-    //stackBot = stackTop- (4*PGSIZE);
-  /*
-  if((addr > stackTop || addr< stackBot) && (addr > curproc->sz || addr< curproc->sz))
+  struct proc *curproc = myproc();
+  uint stackTop = KERNBASE-4;
+  uint stackBot = stackTop- curproc->stackSize;
+  if(curproc->stackSize == 0)
+    stackBot = stackTop- (PGSIZE);
+  
+  if(addr > stackTop || ((addr >= curproc->sz || addr+4 > curproc->sz) && (addr< stackBot)))
   {
+    //cprintf("Fetchint fail due to not being in page mem %p, top of general %p, top of stack %p,bot of stack %p\n",addr,curproc->sz,stackTop,stackBot);
     cprintf("Fetchint fail\n");
     return -1;
-  }*/
+  }
   *ip = *(int*)(addr);
   return 0;
 }
@@ -39,18 +40,18 @@ int
 fetchstr(uint addr, char **pp)
 {
   char *s, *ep;
-  //struct proc *curproc = myproc();
+  struct proc *curproc = myproc();
 
   uint stackTop = KERNBASE-4;
-  //uint stackBot = stackTop- curproc->stackSize;
-  //if(curproc->stackSize == 0)
-    //stackBot = stackTop- (4*PGSIZE);
-  /*
-  if(addr >= stackTop || addr<= stackBot)
+  uint stackBot = stackTop- curproc->stackSize;
+  if(curproc->stackSize == 0)
+    stackBot = stackTop- (PGSIZE);
+  
+  if((addr >= curproc->sz) && (addr< stackBot))
   {
     cprintf("Fetchstr fail\n");
     return -1;
-  }*/
+  }
   *pp = (char*)addr;
   ep = (char*)stackTop;
   for(s = *pp; s < ep; s++){
@@ -74,20 +75,22 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
-  /*
+
   struct proc *curproc = myproc();
   uint stackTop = KERNBASE-4;
-  uint stackBot = stackTop- curproc->stackSize;*/
+  uint stackBot = stackTop- curproc->stackSize;
+
+  if(curproc->stackSize == 0)
+    stackBot = stackTop- (PGSIZE);
 
   if(argint(n, &i) < 0)
     return -1;
-    /*
-  if(size < 0 || (uint)i > stackTop || (uint)i+size > stackTop ||
-  (uint)i < stackBot || (uint)i+size <stackBot)
+    
+  if(size < 0 || (((uint)i >= curproc->sz) && ((uint)i< stackBot)) ||  (((uint)i+size >= curproc->sz) && ((uint)i+ size< stackBot)) )
   {
-    cprintf("argptr fail\n");
+    cprintf("Argptr fail\n");
     return -1;
-  }*/
+  }
   *pp = (char*)i;
   return 0;
 }
