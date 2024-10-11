@@ -5,7 +5,7 @@
 #include "spinlock.h"
 
 static struct {
-    char buffer[9];
+    char buffer[180];
     int producerIndex;
     int consumerIndex;
     uint n;
@@ -101,7 +101,7 @@ void mouseinit(void)
     msBuffer.producerIndex = 0;
     msBuffer.consumerIndex = 0;
     msBuffer.size = 0;
-    msBuffer.n = 9;
+    msBuffer.n = 180;
 
     //empty buffer/sanity check
     inb(MSDATAP);

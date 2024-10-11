@@ -70,7 +70,6 @@ kbdintr(void)
   keyBuffer.cur = 0;
 
   //cprintf("Console Lock");
-  consoleLock();
   while((c = kbdgetc()) >= -1){
     if(keyBuffer.size < 9) // (c = kbggetc & msOrKbd) == 0
     {
@@ -82,7 +81,6 @@ kbdintr(void)
     }
   }
   keyBuffer.buff[keyBuffer.size] = -1;
-  consoleUnlock();
   // cprintf("entering consoleintr");
   consoleintr(buffgetc);
 }
