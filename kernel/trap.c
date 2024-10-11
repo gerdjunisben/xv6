@@ -53,8 +53,8 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_PGFLT:
-    cprintf("Page fault\n");
     /*
+    cprintf("Page fault\n");
     cprintf("  eip: 0x%x\n", tf->eip);
     cprintf("  esp: 0x%x\n", tf->esp);
     cprintf("  cs: 0x%x\n", tf->cs);
@@ -70,9 +70,8 @@ trap(struct trapframe *tf)
     uint newStackSize =(KERNBASE - 4) - tf->esp;
 
     if (newStackSize > MAX_STACK_SIZE) {
+      cprintf("Segfault\n");
       kill(myproc()->pid);
-      //kill
-      //cprintf("New stack size [%d] overflows 4MB\n", newStackSize);
       lapiceoi();
       break;
     }
@@ -86,14 +85,6 @@ trap(struct trapframe *tf)
     {
       myproc()->stackSize += newStackSize;
     }
-
-    //cprintf("Stack extended from %p to %p\n", oldStackBot, newStackBot);
-    
-
-
-   // cprintf("Size %d and stack pointer %p\n",myproc()->stackSize,tf->esp);
-
-    //panic("End so we can see what happened");
     lapiceoi();
     break;
   case T_IRQ0 + IRQ_TIMER:
