@@ -169,8 +169,7 @@ consputc(int c)
 {
   if(panicked){
     cli();
-    for(;;)
-      ;
+    for(;;);
   }
   cgaputc(c);
 }

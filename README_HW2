@@ -1,0 +1,48 @@
+Excercise 1:
+    -decoupling: 
+        First thing we did was remove the part that called uartputc cause that was pretty obviosuly
+        doing most of the mirroring, the other being in uartintr that calls consoleintr with uartgetc and that's it
+    -copy over the formatting code:
+        Theoretically we should make it a shared module but copying was much easier and I doubt I will need
+        it again for this class (please don't prove me wrong).
+    -read and write:
+        First I declare uartread and uartwrite to be our reading and writing functions for COM.
+        We can use a lot of console's read and write but with a few differences/changes. First off uart should
+        have it's own lock so declare that and use it in the spots it should be. The formatting issues we decided
+        to take care of in uartputc. It has special cases for backspace and newline, the backspace is mostly the same from
+        as before but the new line has a line return, I found this issue while working with the telnet later on that it wouldn't
+        return on enter making it look very gross.
+    -adding to init.c:
+        We put 3 arrays in init.h, devices,majorNums and minorNums. We iterate through the arrays (we also define the device count in said header)
+        to init each device. We ioen the device for read/write, if it fails we make a device node and open it again
+        which should always succeed then we close each standard fd one by one and redirect to the device.
+        Then it's as simple as doing the forking code for each device though we had to make a change to sh.
+        In sh we added a param so that sh checks that the three fds of the thing that is calling it are open instead
+        of console every time.
+    -splitting:
+        A lot of this was just making every method in uart find the minor node number some how and switch which port it was
+        using. Some note worthy things in changing are that I gave each COM a buffer and a lock, makes sense but it's worth mentioning.
+        Additionally I made an array containing the COMs so that I could basically do a flattened if in some of the functions
+        such as uartputc.
+        Also probably worth mentioning technique for getting the minor number, most just got it passed but some just got it from the inode which is
+        also where we get it to pass to the ones that take it. There is one exception which is init which I hard coded the minor
+        number when it's called in main.
+    -testing:
+        I set up the telnet stuff so feel free to open a few terminals and say that there are three individuals,
+        hell run stack_test on them from exercise 2 if you want.
+Excercise 2:
+    -Moving the stack:
+        This took a long time but you know what we know how vm works now, I might as well explain the struggle I went through a little.
+        Initial we had no clue how to start it cause we couldn't find heap, eventually we figured out that it was implicit but it was still
+        very strange. Santiago had to go and I thought to myself "Damn, I want to make some progress" so heres what I did.
+        My initial thought was I might need to make a new page allocation thing for the stack that trys to allocate from the top of physical memory.
+        You can tell that I clearly didn't understand how kalloc worked in relation to allocuvm or how the mapping worked, anyway I noticed
+        that the thing I wrote was almost exactly the same as allocuvm and at that point it pretty much clicked how I was supposed to do it
+        but I was quite a few hours in and my brain wasn't fully functioning so when I changed all the sz stuff in other functions
+        it still didn't work but I was fairly certain I was on the right track so I reverted everything back to before I started doing the stack
+        and took a shower. I came back fresher, found my issues in the fetchint type functions and such so decided I want to be
+        certain this works tonight so I disabled the safety and it worked.
+    -Extending
+        Next day Santiago and I readded the safety correctly for the new stack spot and added the page extending (I found pagefault while trying to fix it during
+        that way too long programming session so it was easy). We tested it using the program given in the doc, it was nice and easy
+
