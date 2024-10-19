@@ -22,6 +22,59 @@ static void wakeup1(void *chan);
 static void sched(void);
 static struct proc *roundrobin(void);
 
+char *getState(enum procstate state) {
+  switch(state) {
+    case RUNNABLE: return "runnable";
+    case RUNNING: return "run";
+    case SLEEPING: return "sleep";
+    case EMBRYO: return "embryo";
+    case ZOMBIE: return "zombie";
+    default: return "";
+  }
+}
+
+void printProcs(void)
+{
+  acquire(&ptable.lock);
+  for(int i = 0; i < NPROC; i++) {
+    struct proc *curr_proc = &ptable.proc[i];
+    if(curr_proc->state == UNUSED)
+    {
+      continue;
+    }
+    else
+    {
+      char *state = getState(curr_proc->state);
+      cprintf("%d %s %s run:%d wait:%d sleep:%d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time);
+    }
+  }
+  release(&ptable.lock);
+}
+
+
+void incProcs(void)
+{
+  acquire(&ptable.lock);
+  for(int i = 0; i < NPROC; i++) {
+    struct proc *curr_proc = &ptable.proc[i];
+
+    if (curr_proc->state == RUNNABLE)
+    {
+      curr_proc->wait_time++;
+    }
+    else if(curr_proc->state == RUNNING)
+    {
+      curr_proc->run_time++;
+    }
+    else if(curr_proc->state == SLEEPING)
+    {
+      curr_proc->sleep_time++;
+    }
+  }
+
+  release(&ptable.lock);
+}
+
 void
 pinit(void)
 {

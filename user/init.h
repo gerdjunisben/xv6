@@ -1,4 +1,4 @@
-#define deviceCount 3
+#define deviceCount 1
 
 
 // this is the device table

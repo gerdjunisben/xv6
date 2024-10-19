@@ -55,6 +55,7 @@ struct proc {
 
   //trying to add stack tracking to proc
   uint stackSize;
+  
 };
 
 // Process memory is laid out contiguously, low addresses first:
