@@ -14,6 +14,8 @@ struct {
 
 static struct proc *initproc;
 
+static float loadAverage = 0;
+
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -31,6 +33,24 @@ char *getState(enum procstate state) {
     case ZOMBIE: return "zombie";
     default: return "";
   }
+}
+
+float getLoadAvg(void) {
+  return loadAverage;
+}
+
+
+void updateLoadAvg(void)
+{
+  acquire(&ptable.lock);
+  float num_processes = 0.0;
+  for(int i = 0; i < NPROC; i++) {
+    struct proc *curr_proc = &ptable.proc[i];
+    if(curr_proc->state == RUNNING || curr_proc->state == RUNNABLE)
+      num_processes++;
+  }
+  loadAverage =  (0.999616 * loadAverage) + ((1 - 0.999616) * num_processes);
+  release(&ptable.lock);
 }
 
 void printProcs(void)

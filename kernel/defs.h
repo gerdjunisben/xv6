@@ -129,8 +129,12 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+
+//our stuff for HW3
 void            incProcs(void);
 void            printProcs(void);
+void            updateLoadAvg(void);
+float           getLoadAvg(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

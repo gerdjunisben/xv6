@@ -8,6 +8,9 @@
 #include "traps.h"
 #include "spinlock.h"
 
+
+
+
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
@@ -81,10 +84,14 @@ trap(struct trapframe *tf)
       ticks++;
       // increment processes stats
       incProcs();
+
+      //update load average
+      updateLoadAvg();
+      
       // printout process statistics
       if (ticks % 1000 == 0) {
         
-        cprintf("\ncpus: %d, uptime: %d\n", ncpu, ticks);
+        cprintf("\ncpus: %d, uptime: %d, load(x100): %d\n", ncpu, ticks, (uint)(100*getLoadAvg()));
         printProcs();
       }
       wakeup(&ticks);
