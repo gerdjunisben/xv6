@@ -87,13 +87,18 @@ trap(struct trapframe *tf)
 
       //update load average
       updateLoadAvg();
-      
+
+      //update cpu avg
+      if (ticks % 100 == 0) {
+        updateLastRuntime();
+      }
+
       // printout process statistics
       if (ticks % 1000 == 0) {
-        
         cprintf("\ncpus: %d, uptime: %d, load(x100): %d\n", ncpu, ticks, (uint)(100*getLoadAvg()));
         printProcs();
       }
+
       wakeup(&ticks);
       release(&tickslock);
     }
