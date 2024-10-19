@@ -40,6 +40,9 @@ struct proc {
   pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
+  unsigned long run_time;      // Measure time in RUNNING state
+  unsigned long wait_time;     // Measure time in RUNNABLE state
+  unsigned long sleep_time;    // Measure time in SLEEPING state
   int pid;                     // Process ID
   struct proc *parent;         // Parent process
   struct trapframe *tf;        // Trap frame for current syscall

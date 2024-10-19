@@ -79,6 +79,16 @@ trap(struct trapframe *tf)
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
+
+      //printout after 100 ticks to calibrate
+      // if (ticks % 100 == 0) {
+      //   cprintf("100 ticks\n");
+      // }
+
+      // printout process statistics
+      if (ticks % 1000 == 0) {
+        cprintf("cpus: %d, ", ncpu);
+      }
       wakeup(&ticks);
       release(&tickslock);
     }
