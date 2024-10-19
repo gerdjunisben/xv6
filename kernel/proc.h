@@ -58,7 +58,7 @@ struct proc {
   unsigned long wait_time;     // Measure time in RUNNABLE state
   unsigned long sleep_time;    // Measure time in SLEEPING state
 
-  float cpuUtil;
+  uint cpuUtil;
   unsigned long last_runtime;
 };
 

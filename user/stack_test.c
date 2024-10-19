@@ -3,9 +3,9 @@
 
 void rec(int i) {
   printf(1, "%d(0x%x)\n", i, &i);
-  if(i==10000)
+  if(i%10000==0 && i!=0)
   {
-    sleep(10000);
+    sleep(1000);
   }
   rec(i+1);
   printf(0,"One ahead");

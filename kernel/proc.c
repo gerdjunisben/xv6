@@ -59,8 +59,8 @@ void updateLastRuntime(void)
       // 0.9557445
       // 0.97748725
       curr_proc->cpuUtil = ((0.97748725 * curr_proc->cpuUtil) + ((1-0.97748725) * diff));
-      if(((uint)(100*curr_proc->cpuUtil)) >100)
-        curr_proc->cpuUtil = 1;
+      if(((uint)(curr_proc->cpuUtil)) >100)
+        curr_proc->cpuUtil = 100;
       //cprintf("Cpu util %d",(uint)(100*curr_proc->cpuUtil));
       curr_proc->last_runtime = curr_proc->run_time;
     }
@@ -93,7 +93,7 @@ void printProcs(void)
     else
     {
       char *state = getState(curr_proc->state);
-      cprintf("%d %s %s run:%d wait:%d sleep:%d cpu%:%d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time,(uint)(100*curr_proc->cpuUtil));
+      cprintf("%d %s %s run:%d wait:%d sleep:%d cpu%:%d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time,(uint)(curr_proc->cpuUtil));
     }
   }
   release(&ptable.lock);
