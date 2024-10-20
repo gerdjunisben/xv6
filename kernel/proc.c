@@ -40,7 +40,7 @@ float getLoadAvg(void) {
 }
 
 
-void updateLastRuntime(void)
+void updateLastRuntime()
 {
   acquire(&ptable.lock);
   for(int i = 0; i < NPROC; i++) {
@@ -51,14 +51,69 @@ void updateLastRuntime(void)
     }
     else
     {
-
+      if((curr_proc->run_time + curr_proc->wait_time + curr_proc->sleep_time) > 100)
+      {
+        //cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
+        if(curr_proc->state != RUNNING && curr_proc->lastHundredRun>0)
+        {
+          //cprintf("%s not running\n",curr_proc->name);
+          curr_proc->lastHundredRun= curr_proc->lastHundredRun - 1;
+        }
+        else if(curr_proc->state == RUNNING && curr_proc->lastHundredRun<100)
+        {
+          //cprintf("%s is running\n",curr_proc->name);
+          curr_proc->lastHundredRun= curr_proc->lastHundredRun + 1;
+        } 
+        curr_proc->cpuUtil = ((0.999232* curr_proc->cpuUtil) + ((1-0.999232) * curr_proc->lastHundredRun));
+      }
+      else
+      {
+        //cprintf("%s is running (before 100 ticks)\n",curr_proc->name);
+        if(curr_proc->state == RUNNING)
+        {
+          curr_proc->lastHundredRun= curr_proc->lastHundredRun + 1;
+        }
+      }
       // avg CPU time for the last 100 ticks
-      float diff = (curr_proc->run_time - curr_proc->last_runtime);
+      //float diff = (curr_proc->run_time - curr_proc->last_runtime);
+      //cprintf("proc:%s, new:%d, old:%d\n",curr_proc->name, curr_proc->run_time,curr_proc->last_runtime);
       // 0.99923
       // 0.926119
       // 0.9557445
       // 0.97748725
-      curr_proc->cpuUtil = ((0.97748725 * curr_proc->cpuUtil) + ((1-0.97748725) * diff));
+      // 0.85
+      //curr_proc->cpuUtil = ((0.85* curr_proc->cpuUtil) + ((1-0.85) * diff));
+      //if(((uint)(curr_proc->cpuUtil)) >100)
+        //curr_proc->cpuUtil = 100;
+      //cprintf("Cpu util %d",(uint)(100*curr_proc->cpuUtil));
+      //curr_proc->last_runtime = curr_proc->run_time;
+    }
+  }
+  release(&ptable.lock);
+}
+
+/*
+void updateLastWait(void)
+{
+  acquire(&ptable.lock);
+  for(int i = 0; i < NPROC; i++) {
+    struct proc *curr_proc = &ptable.proc[i];
+    if(curr_proc->state == UNUSED)
+    {
+      continue;
+    }
+    else
+    {
+      
+      // avg CPU time for the last 100 ticks
+      float diff = (curr_proc->wait_time- curr_proc->last_waittime);
+      //cprintf("proc:%s, new:%d, old:%d\n",curr_proc->name, curr_proc->run_time,curr_proc->last_runtime);
+      // 0.99923
+      // 0.926119
+      // 0.9557445
+      // 0.97748725
+      // 0.85
+      curr_proc->cpuUtil = ((0.999232* curr_proc->cpuUtil) + ((1-0.999232) * diff));
       if(((uint)(curr_proc->cpuUtil)) >100)
         curr_proc->cpuUtil = 100;
       //cprintf("Cpu util %d",(uint)(100*curr_proc->cpuUtil));
@@ -66,7 +121,7 @@ void updateLastRuntime(void)
     }
   }
   release(&ptable.lock);
-}
+}*/
 
 void updateLoadAvg(void)
 {
@@ -94,6 +149,7 @@ void printProcs(void)
     {
       char *state = getState(curr_proc->state);
       cprintf("%d %s %s run:%d wait:%d sleep:%d cpu%:%d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time,(uint)(curr_proc->cpuUtil));
+      //cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
     }
   }
   release(&ptable.lock);
@@ -220,7 +276,7 @@ found:
   p->wait_time = 0;
   p->sleep_time = 0;
   p->cpuUtil = 0.0;
-  p->last_runtime = 0;
+  p->lastHundredRun = 0;
 
   return p;
 }

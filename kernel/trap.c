@@ -89,9 +89,8 @@ trap(struct trapframe *tf)
       updateLoadAvg();
 
       //update cpu avg
-      if (ticks % 100 == 0) {
-        updateLastRuntime();
-      }
+      updateLastRuntime();
+      
 
       // printout process statistics
       if (ticks % 1000 == 0) {
