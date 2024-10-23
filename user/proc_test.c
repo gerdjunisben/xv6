@@ -2,6 +2,22 @@
 #include "user.h"
 
 
+
+
+static uint sum = 1;
+
+
+void setSum(uint i)
+{
+    sum = i;
+}
+
+void mulSum(uint i)
+{
+    sum*=i;
+}
+
+
 int main(int argc, char *argv[])
 {
     /*
@@ -35,15 +51,16 @@ int main(int argc, char *argv[])
         wait();c
         exit();
     }*/
-   uint sum = 0;
-   for(int j = 0;j<=4000;j++)
+   uint sum = 1;
+   for(int j = 0;j<=3000;j++)
     {
-        for (int i = 1; i <= 12500000; i++) {
-            sum += i * i;
+        for (int i = 1; i <= 53060 ; i++) {
+            //the methods stop optimization from occuring cause gcc has no clue what they do
+            mulSum(i);
         }
 
-
         sleep(1);
+        setSum(1);
     }
     printf(0,"%d\n",sum);
     exit();

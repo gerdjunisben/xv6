@@ -56,15 +56,14 @@ void updateLastRuntime()
         //cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
         if(curr_proc->state != RUNNING && curr_proc->lastHundredRun>0)
         {
-          //cprintf("%s not running\n",curr_proc->name);
-          curr_proc->lastHundredRun= curr_proc->lastHundredRun - 1;
+          curr_proc->lastHundredRun-=1;
         }
         else if(curr_proc->state == RUNNING && curr_proc->lastHundredRun<100)
         {
-          //cprintf("%s is running\n",curr_proc->name);
-          curr_proc->lastHundredRun= curr_proc->lastHundredRun + 1;
+          curr_proc->lastHundredRun+=1;
         } 
-        curr_proc->cpuUtil = ((0.999232* curr_proc->cpuUtil) + ((1-0.999232) * curr_proc->lastHundredRun));
+        //cprintf("%d\n",curr_proc->lastHundredRun);
+        curr_proc->cpuUtil = ((0.999232* curr_proc->cpuUtil) + ((1.0 - 0.999232) * curr_proc->lastHundredRun));
       }
       else
       {
