@@ -73,7 +73,7 @@ void updateLastRuntime()
           curr_proc->lastHundredRun+=1;
         } 
         //cprintf("%d\n",curr_proc->lastHundredRun);
-        curr_proc->cpuUtil = ((0.999232* curr_proc->cpuUtil) + ((1.0 - 0.999232) * curr_proc->lastHundredRun));
+        curr_proc->cpuUtil = ((0.999232766* curr_proc->cpuUtil) + ((1.0 - 0.999232766) * curr_proc->lastHundredRun));
       }
       else
       {
