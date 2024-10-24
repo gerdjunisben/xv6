@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
         exit();
     }*/
    uint sum = 1;
-   for(int j = 0;j<=3000;j++)
+   for(int j = 0;j<=4000;j++)
     {
         for (int i = 1; i <= 53060 ; i++) {
             //the methods stop optimization from occuring cause gcc has no clue what they do

@@ -12,6 +12,13 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+
+struct{
+  struct spinlock lock;
+  int ticks[100];
+  uint current;
+} tickBuffer;
+
 static struct proc *initproc;
 
 static float loadAverage = 0;
@@ -43,6 +50,7 @@ float getLoadAvg(void) {
 void updateLastRuntime()
 {
   acquire(&ptable.lock);
+  acquire(&tickBuffer.lock);
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
     if(curr_proc->state == UNUSED)
@@ -51,15 +59,17 @@ void updateLastRuntime()
     }
     else
     {
-      if((curr_proc->run_time + curr_proc->wait_time + curr_proc->sleep_time) > 100)
+      if((curr_proc->run_time + curr_proc->wait_time + curr_proc->sleep_time) >= 100)
       {
         //cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
-        if(curr_proc->state != RUNNING && curr_proc->lastHundredRun>0)
+        if(curr_proc->state != RUNNING && tickBuffer.ticks[(tickBuffer.current)%100] == curr_proc->pid)
         {
+          tickBuffer.ticks[(tickBuffer.current++)%100] = 0;
           curr_proc->lastHundredRun-=1;
         }
-        else if(curr_proc->state == RUNNING && curr_proc->lastHundredRun<100)
+        else if(curr_proc->state == RUNNING && tickBuffer.ticks[(tickBuffer.current)%100] != curr_proc->pid)
         {
+          tickBuffer.ticks[(tickBuffer.current++)%100] = curr_proc->pid;
           curr_proc->lastHundredRun+=1;
         } 
         //cprintf("%d\n",curr_proc->lastHundredRun);
@@ -71,56 +81,15 @@ void updateLastRuntime()
         if(curr_proc->state == RUNNING)
         {
           curr_proc->lastHundredRun= curr_proc->lastHundredRun + 1;
+          tickBuffer.ticks[(tickBuffer.current++)%100] = curr_proc->pid;
         }
       }
-      // avg CPU time for the last 100 ticks
-      //float diff = (curr_proc->run_time - curr_proc->last_runtime);
-      //cprintf("proc:%s, new:%d, old:%d\n",curr_proc->name, curr_proc->run_time,curr_proc->last_runtime);
-      // 0.99923
-      // 0.926119
-      // 0.9557445
-      // 0.97748725
-      // 0.85
-      //curr_proc->cpuUtil = ((0.85* curr_proc->cpuUtil) + ((1-0.85) * diff));
-      //if(((uint)(curr_proc->cpuUtil)) >100)
-        //curr_proc->cpuUtil = 100;
-      //cprintf("Cpu util %d",(uint)(100*curr_proc->cpuUtil));
-      //curr_proc->last_runtime = curr_proc->run_time;
     }
   }
+  release(&tickBuffer.lock);
   release(&ptable.lock);
 }
 
-/*
-void updateLastWait(void)
-{
-  acquire(&ptable.lock);
-  for(int i = 0; i < NPROC; i++) {
-    struct proc *curr_proc = &ptable.proc[i];
-    if(curr_proc->state == UNUSED)
-    {
-      continue;
-    }
-    else
-    {
-      
-      // avg CPU time for the last 100 ticks
-      float diff = (curr_proc->wait_time- curr_proc->last_waittime);
-      //cprintf("proc:%s, new:%d, old:%d\n",curr_proc->name, curr_proc->run_time,curr_proc->last_runtime);
-      // 0.99923
-      // 0.926119
-      // 0.9557445
-      // 0.97748725
-      // 0.85
-      curr_proc->cpuUtil = ((0.999232* curr_proc->cpuUtil) + ((1-0.999232) * diff));
-      if(((uint)(curr_proc->cpuUtil)) >100)
-        curr_proc->cpuUtil = 100;
-      //cprintf("Cpu util %d",(uint)(100*curr_proc->cpuUtil));
-      curr_proc->last_runtime = curr_proc->run_time;
-    }
-  }
-  release(&ptable.lock);
-}*/
 
 void updateLoadAvg(void)
 {
@@ -182,6 +151,12 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  initlock(&tickBuffer.lock, "tickBuffer");
+  for(int i = 0;i<100;i++)
+  {
+    tickBuffer.ticks[i] = 0;
+  }
+  tickBuffer.current = 0;
 }
 
 // Must be called with interrupts disabled
