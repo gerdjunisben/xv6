@@ -64,13 +64,15 @@ void updateLastRuntime()
         //cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
         if(curr_proc->state != RUNNING && tickBuffer.ticks[(tickBuffer.current)%100] == curr_proc->pid)
         {
-          tickBuffer.ticks[(tickBuffer.current++)%100] = 0;
+          tickBuffer.ticks[(tickBuffer.current)%100] = -1;
           curr_proc->lastHundredRun-=1;
+          //cprintf("Down");
         }
         else if(curr_proc->state == RUNNING && tickBuffer.ticks[(tickBuffer.current)%100] != curr_proc->pid)
         {
-          tickBuffer.ticks[(tickBuffer.current++)%100] = curr_proc->pid;
+          tickBuffer.ticks[(tickBuffer.current)%100] = curr_proc->pid;
           curr_proc->lastHundredRun+=1;
+          //cprintf("Up");
         } 
         //cprintf("%d\n",curr_proc->lastHundredRun);
         curr_proc->cpuUtil = ((0.999232766* curr_proc->cpuUtil) + ((1.0 - 0.999232766) * curr_proc->lastHundredRun));
@@ -80,12 +82,13 @@ void updateLastRuntime()
         //cprintf("%s is running (before 100 ticks)\n",curr_proc->name);
         if(curr_proc->state == RUNNING)
         {
-          curr_proc->lastHundredRun= curr_proc->lastHundredRun + 1;
-          tickBuffer.ticks[(tickBuffer.current++)%100] = curr_proc->pid;
+          curr_proc->lastHundredRun+= 1;
+          tickBuffer.ticks[(tickBuffer.current)%100] = curr_proc->pid;
         }
       }
     }
   }
+  tickBuffer.current+=1;
   release(&tickBuffer.lock);
   release(&ptable.lock);
 }
@@ -117,7 +120,15 @@ void printProcs(void)
     {
       char *state = getState(curr_proc->state);
       cprintf("%d %s %s run:%d wait:%d sleep:%d cpu%:%d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time,(uint)(curr_proc->cpuUtil));
-      //cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
+      /*
+      cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
+      uint sum =0;
+      for(int i =0;i<100;i++)
+      {
+        if(tickBuffer.ticks[i]==curr_proc->pid)
+          sum+=1;
+      }
+      cprintf("Last 100 %d\n",sum);*/
     }
   }
   release(&ptable.lock);
