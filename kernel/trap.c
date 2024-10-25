@@ -82,6 +82,11 @@ trap(struct trapframe *tf)
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
+
+
+      #ifdef CPU_SCHEDULER
+        cprintf("%d\n",CPU_SCHEDULER);
+      #endif
       // increment processes stats
       incProcs();
 

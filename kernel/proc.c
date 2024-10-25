@@ -7,6 +7,9 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
+#define CPU_SCHEDULER = 0
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -45,36 +48,6 @@ void updateLatency(struct proc *curr_proc)
 {
   //no locking of ptable since only called in method that already locks it
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
   if(curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current - 1)%100] == 0 && curr_proc->state == RUNNABLE)
   {
     curr_proc->isLatency = 1;
@@ -702,28 +675,44 @@ sched(void)
   }
 
   // Choose next process to run.
-  if((p = roundrobin()) != 0) {
-    // Switch to chosen process.  It is the process's job
-    // to release ptable.lock and then reacquire it
-    // before jumping back to us.
-    p->state = RUNNING;
-    switchuvm(p);
-    if(c->proc != p) {
-      c->proc = p;
-      intena = c->intena;
-      swtch(oldcontext, p->context);
-      mycpu()->intena = intena;  // We might return on a different CPU.
-    }
-  } else {
-    // No process to run -- switch to the idle loop.
-    switchkvm();
-    if(oldcontext != &(c->scheduler)) {
-      c->proc = 0;
-      intena = c->intena;
-      swtch(oldcontext, c->scheduler);
-      mycpu()->intena = intena;
+  switch (CPU_SCHEDULER)
+  {
+  case 0:
+    p = roundrobin();
+    break;
+
+  case 1: 
+    break;
+
+  case 2:
+    break;   
+  default:
+    break;
+
+    if((p = roundrobin()) != 0) {
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      p->state = RUNNING;
+      switchuvm(p);
+      if(c->proc != p) {
+        c->proc = p;
+        intena = c->intena;
+        swtch(oldcontext, p->context);
+        mycpu()->intena = intena;  // We might return on a different CPU.
+      }
+    } else {
+      // No process to run -- switch to the idle loop.
+      switchkvm();
+      if(oldcontext != &(c->scheduler)) {
+        c->proc = 0;
+        intena = c->intena;
+       swtch(oldcontext, c->scheduler);
+        mycpu()->intena = intena;
+      }
     }
   }
+  
 }
 
 // Round-robin scheduler.
