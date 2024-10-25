@@ -1,3 +1,5 @@
+
+
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -59,9 +61,15 @@ struct proc {
   unsigned long sleep_time;    // Measure time in SLEEPING state
 
   float cpuUtil;
+  float waitPercent;
   uint wait;
   uint lastHundredRun;
-  unsigned long last_waittime;
+  uint lastHundredWait;
+
+  struct{
+    int ticks[100];
+    uint current;
+  } tickBuffer;
 };
 
 

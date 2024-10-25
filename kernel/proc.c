@@ -13,11 +13,6 @@ struct {
 } ptable;
 
 
-struct{
-  struct spinlock lock;
-  int ticks[100];
-  uint current;
-} tickBuffer;
 
 static struct proc *initproc;
 
@@ -47,10 +42,9 @@ float getLoadAvg(void) {
 }
 
 
-void updateLastRuntime()
+void updateLastHundred()
 {
   acquire(&ptable.lock);
-  acquire(&tickBuffer.lock);
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
     if(curr_proc->state == UNUSED)
@@ -59,23 +53,46 @@ void updateLastRuntime()
     }
     else
     {
+      //SLEEPING = 0
+      //RUNNABLE = 1
+      //RUNNING = 2
       if((curr_proc->run_time + curr_proc->wait_time + curr_proc->sleep_time) >= 100)
       {
-        //cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
-        if(curr_proc->state != RUNNING && tickBuffer.ticks[(tickBuffer.current)%100] == curr_proc->pid)
+        //handle our lastHundredWait
+        if(curr_proc->state != RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == 1)
         {
-          tickBuffer.ticks[(tickBuffer.current)%100] = -1;
-          curr_proc->lastHundredRun-=1;
-          //cprintf("Down");
+          curr_proc->lastHundredWait-=1;
         }
-        else if(curr_proc->state == RUNNING && tickBuffer.ticks[(tickBuffer.current)%100] != curr_proc->pid)
+        else if(curr_proc->state == RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != 1)
         {
-          tickBuffer.ticks[(tickBuffer.current)%100] = curr_proc->pid;
-          curr_proc->lastHundredRun+=1;
-          //cprintf("Up");
+          curr_proc->lastHundredWait+=1;
         } 
-        //cprintf("%d\n",curr_proc->lastHundredRun);
-        curr_proc->cpuUtil = ((0.999232766* curr_proc->cpuUtil) + ((1.0 - 0.999232766) * curr_proc->lastHundredRun));
+
+
+        //handle our lastHundredRun
+        if(curr_proc->state != RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == 2)
+        {
+          curr_proc->lastHundredRun-=1;
+        }
+        else if(curr_proc->state == RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != 2)
+        {
+          curr_proc->lastHundredRun+=1;
+        } 
+
+        if(curr_proc->state == SLEEPING)
+        {
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 0;
+        }
+        else if (curr_proc->state == RUNNABLE)
+        {
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 1;
+        }
+        else if(curr_proc->state == RUNNING)
+        {
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 2;
+        }
+
+        
       }
       else
       {
@@ -83,15 +100,38 @@ void updateLastRuntime()
         if(curr_proc->state == RUNNING)
         {
           curr_proc->lastHundredRun+= 1;
-          tickBuffer.ticks[(tickBuffer.current)%100] = curr_proc->pid;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 2;
+        }
+        else if(curr_proc->state == RUNNABLE)
+        {
+          curr_proc->lastHundredWait+=1;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 1;
         }
       }
+      curr_proc->tickBuffer.current++;
     }
   }
-  tickBuffer.current+=1;
-  release(&tickBuffer.lock);
+  
   release(&ptable.lock);
 }
+
+void updateUtil()
+{
+  for(int i = 0; i < NPROC; i++) {
+    struct proc *curr_proc = &ptable.proc[i];
+    curr_proc->cpuUtil = ((0.999232766* curr_proc->cpuUtil) + ((1.0 - 0.999232766) * curr_proc->lastHundredRun));
+  }
+}
+
+
+void updateWait()
+{
+  for(int i = 0; i < NPROC; i++) {
+    struct proc *curr_proc = &ptable.proc[i];
+    curr_proc->waitPercent = ((0.999232766* curr_proc->waitPercent) + ((1.0 - 0.999232766) * curr_proc->lastHundredWait));
+  }
+}
+
 
 
 void updateLoadAvg(void)
@@ -119,7 +159,7 @@ void printProcs(void)
     else
     {
       char *state = getState(curr_proc->state);
-      cprintf("%d %s %s run:%d wait:%d sleep:%d cpu%:%d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time,(uint)(curr_proc->cpuUtil));
+      cprintf("%d %s %s run:%d wait:%d sleep:%d cpu%:%d wait%:%d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time,(uint)(curr_proc->cpuUtil),(uint)(curr_proc->waitPercent));
       /*
       cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
       uint sum =0;
@@ -162,12 +202,6 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
-  initlock(&tickBuffer.lock, "tickBuffer");
-  for(int i = 0;i<100;i++)
-  {
-    tickBuffer.ticks[i] = 0;
-  }
-  tickBuffer.current = 0;
 }
 
 // Must be called with interrupts disabled
@@ -262,6 +296,14 @@ found:
   p->sleep_time = 0;
   p->cpuUtil = 0.0;
   p->lastHundredRun = 0;
+  p->waitPercent = 0;
+  p->lastHundredWait = 0;
+  
+  for(int i = 0;i<100;i++)
+  {
+    p->tickBuffer.ticks[i] = 0;
+  }
+  p->tickBuffer.current = 0;
 
   return p;
 }

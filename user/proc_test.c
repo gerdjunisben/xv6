@@ -45,12 +45,17 @@ void compute(uint j)
 int main(int argc, char *argv[])
 {
    uint sum = 1;
+   uint pid = fork();
    for(int j = 0;j<=4000;j++)
     {
        compute(1);
 
 
         sleep(1);
+    }
+    if(pid!=0)
+    {
+        wait();
     }
     printf(0,"%d\n",sum);
     exit();

@@ -135,7 +135,9 @@ void            incProcs(void);
 void            printProcs(void);
 void            updateLoadAvg(void);
 float           getLoadAvg(void);
-void            updateLastRuntime(void);
+void            updateLastHundred(void);
+void            updateUtil(void);
+void            updateWait(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

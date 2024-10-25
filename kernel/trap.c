@@ -88,8 +88,15 @@ trap(struct trapframe *tf)
       //update load average
       updateLoadAvg();
 
-      //update cpu avg
-      updateLastRuntime();
+      //update last hundred ticks
+      updateLastHundred();
+
+      //update cpu util percent
+      updateUtil();
+
+
+      //update wait percent
+      updateWait();
       
 
       // printout process statistics
