@@ -62,13 +62,18 @@ struct proc {
 
   float cpuUtil;
   float waitPercent;
+  float avgLatency;
   uint wait;
   uint lastHundredRun;
   uint lastHundredWait;
+  
   uint latencyCount;
   uint latencyTicks;
+  uint maxLatencyTicks;
+  uint maxLatencyIndex;
   uint isLatency;
   uint isOldLatency;
+  
 
   struct{
     int ticks[100];

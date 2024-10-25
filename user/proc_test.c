@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
    for(int i = 0;i<10;i++)
    {
      pid = fork();
+     sleep(5);
      if(pid ==0)
      {
         break;

@@ -138,6 +138,7 @@ float           getLoadAvg(void);
 void            updateLastHundred(void);
 void            updateUtil(void);
 void            updateWait(void);
+void            updateLatencyAvg(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

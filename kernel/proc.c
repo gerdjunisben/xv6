@@ -44,10 +44,41 @@ float getLoadAvg(void) {
 void updateLatency(struct proc *curr_proc)
 {
   //no locking of ptable since only called in method that already locks it
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
   if(curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current - 1)%100] == 0 && curr_proc->state == RUNNABLE)
   {
     curr_proc->isLatency = 1;
-    curr_proc->latencyCount +=1;
+    //curr_proc->latencyCount +=1;
     if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==0)
     {
       curr_proc->isOldLatency = 0;
@@ -59,7 +90,7 @@ void updateLatency(struct proc *curr_proc)
       if(curr_proc->isOldLatency == 0)
       {
         curr_proc->isOldLatency = 1;
-        curr_proc->latencyCount -=1;
+        //curr_proc->latencyCount -=1;
       }
     }
   }
@@ -76,19 +107,26 @@ void updateLatency(struct proc *curr_proc)
       if(curr_proc->isOldLatency == 0)
       {
         curr_proc->isOldLatency = 1;
-        curr_proc->latencyCount -=1;
+        //curr_proc->latencyCount -=1;
       }
     }
   }
-  else if(curr_proc->state != RUNNABLE)
+  else
   {
-    curr_proc->isLatency = 0;
+    if(curr_proc->isLatency)
+    {
+      curr_proc->isLatency = 0;
+      if(curr_proc->maxLatencyTicks < curr_proc->latencyTicks)
+      {
+        curr_proc->maxLatencyTicks = curr_proc->latencyTicks;
+      }
+    }
     if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==1)
     {
       if(curr_proc->isOldLatency == 0)
       {
         curr_proc->isOldLatency = 1;
-        curr_proc->latencyCount -=1;
+        //curr_proc->latencyCount -=1;
       }
       curr_proc->latencyTicks-=1;
       curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 0;
@@ -98,6 +136,7 @@ void updateLatency(struct proc *curr_proc)
       curr_proc->isOldLatency = 0;
     }
   }
+  
 }
 
 
@@ -199,6 +238,33 @@ void updateWait()
   release(&ptable.lock);
 }
 
+void updateLatencyAvg()
+{
+  acquire(&ptable.lock);
+  for(int i = 0; i < NPROC; i++) {
+    struct proc *curr_proc = &ptable.proc[i];
+    int max = 0;
+    int cur = 0;
+    for(int i =0;i<100;i++)
+    {
+      if(curr_proc->tickBuffer.latency[i] == 1)
+      {
+        cur +=1;
+      }
+      else
+      {
+        if(cur >max)
+        {
+          max = cur;
+        }
+        cur = 0;
+      }
+    }
+    curr_proc->avgLatency = ((0.999232766* curr_proc->avgLatency) + ((1.0 - 0.999232766) * max));
+  }
+  release(&ptable.lock);
+}
+
 
 
 void updateLoadAvg(void)
@@ -226,8 +292,8 @@ void printProcs(void)
     else
     {
       char *state = getState(curr_proc->state);
-      cprintf("%d %s %s run:%d wait:%d sleep:%d cpu%:%d wait%:%d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time,(uint)(curr_proc->cpuUtil),(uint)(curr_proc->waitPercent));
-      cprintf("latency ticks: %d, latency count: %d, isLatency: %d, isOldLatency: %d\n", curr_proc->latencyTicks, curr_proc->latencyCount, curr_proc->isLatency, curr_proc->isOldLatency);
+      cprintf("%d %s %s run:%d wait:%d sleep:%d cpu%:%d wait%:%d latency: %d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time,(uint)(curr_proc->cpuUtil),(uint)(curr_proc->waitPercent),(uint)(curr_proc->avgLatency));
+      //cprintf("latency ticks: %d, latency count: %d, isLatency: %d, isOldLatency: %d\n", curr_proc->latencyTicks, curr_proc->latencyCount, curr_proc->isLatency, curr_proc->isOldLatency);
       /*
       cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
       uint sum =0;

@@ -97,6 +97,9 @@ trap(struct trapframe *tf)
 
       //update wait percent
       updateWait();
+
+      //update latency
+      updateLatencyAvg();
       
 
       // printout process statistics
