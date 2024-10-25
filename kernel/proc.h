@@ -65,11 +65,17 @@ struct proc {
   uint wait;
   uint lastHundredRun;
   uint lastHundredWait;
+  uint latencyCount;
+  uint latencyTicks;
+  uint isLatency;
+  uint isOldLatency;
 
   struct{
     int ticks[100];
+    int latency[100];
     uint current;
   } tickBuffer;
+
 };
 
 

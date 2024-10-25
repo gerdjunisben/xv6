@@ -41,6 +41,65 @@ float getLoadAvg(void) {
   return loadAverage;
 }
 
+void updateLatency(struct proc *curr_proc)
+{
+  //no locking of ptable since only called in method that already locks it
+  if(curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current - 1)%100] == 0 && curr_proc->state == RUNNABLE)
+  {
+    curr_proc->isLatency = 1;
+    curr_proc->latencyCount +=1;
+    if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==0)
+    {
+      curr_proc->isOldLatency = 0;
+      curr_proc->latencyTicks+=1;
+      curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 1;
+    }
+    else
+    {
+      if(curr_proc->isOldLatency == 0)
+      {
+        curr_proc->isOldLatency = 1;
+        curr_proc->latencyCount -=1;
+      }
+    }
+  }
+  else if(curr_proc->isLatency && curr_proc->state == RUNNABLE)
+  {
+    if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==0)
+    {
+      curr_proc->isOldLatency = 0;
+      curr_proc->latencyTicks+=1;
+      curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 1;
+    }
+    else
+    {
+      if(curr_proc->isOldLatency == 0)
+      {
+        curr_proc->isOldLatency = 1;
+        curr_proc->latencyCount -=1;
+      }
+    }
+  }
+  else if(curr_proc->state != RUNNABLE)
+  {
+    curr_proc->isLatency = 0;
+    if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==1)
+    {
+      if(curr_proc->isOldLatency == 0)
+      {
+        curr_proc->isOldLatency = 1;
+        curr_proc->latencyCount -=1;
+      }
+      curr_proc->latencyTicks-=1;
+      curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 0;
+    }
+    else
+    {
+      curr_proc->isOldLatency = 0;
+    }
+  }
+}
+
 
 void updateLastHundred()
 {
@@ -56,6 +115,10 @@ void updateLastHundred()
       //SLEEPING = 0
       //RUNNABLE = 1
       //RUNNING = 2
+      if(curr_proc->tickBuffer.current > 0)
+      {
+        updateLatency(curr_proc);
+      }
       if((curr_proc->run_time + curr_proc->wait_time + curr_proc->sleep_time) >= 100)
       {
         //handle our lastHundredWait
@@ -79,6 +142,7 @@ void updateLastHundred()
           curr_proc->lastHundredRun+=1;
         } 
 
+        //set current tick to respective number
         if(curr_proc->state == SLEEPING)
         {
           curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 0;
@@ -92,11 +156,10 @@ void updateLastHundred()
           curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 2;
         }
 
-        
       }
       else
       {
-        //cprintf("%s is running (before 100 ticks)\n",curr_proc->name);
+        //handle before buffer full
         if(curr_proc->state == RUNNING)
         {
           curr_proc->lastHundredRun+= 1;
@@ -117,19 +180,23 @@ void updateLastHundred()
 
 void updateUtil()
 {
+  acquire(&ptable.lock);
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
     curr_proc->cpuUtil = ((0.999232766* curr_proc->cpuUtil) + ((1.0 - 0.999232766) * curr_proc->lastHundredRun));
   }
+  release(&ptable.lock);
 }
 
 
 void updateWait()
 {
+  acquire(&ptable.lock);
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
     curr_proc->waitPercent = ((0.999232766* curr_proc->waitPercent) + ((1.0 - 0.999232766) * curr_proc->lastHundredWait));
   }
+  release(&ptable.lock);
 }
 
 
@@ -160,6 +227,7 @@ void printProcs(void)
     {
       char *state = getState(curr_proc->state);
       cprintf("%d %s %s run:%d wait:%d sleep:%d cpu%:%d wait%:%d\n",curr_proc->pid, state,curr_proc->name,curr_proc->run_time,curr_proc->wait_time,curr_proc->sleep_time,(uint)(curr_proc->cpuUtil),(uint)(curr_proc->waitPercent));
+      cprintf("latency ticks: %d, latency count: %d, isLatency: %d, isOldLatency: %d\n", curr_proc->latencyTicks, curr_proc->latencyCount, curr_proc->isLatency, curr_proc->isOldLatency);
       /*
       cprintf("Last 100 %d\n",curr_proc->lastHundredRun);
       uint sum =0;
@@ -302,6 +370,7 @@ found:
   for(int i = 0;i<100;i++)
   {
     p->tickBuffer.ticks[i] = 0;
+    p->tickBuffer.latency[i] = 0;
   }
   p->tickBuffer.current = 0;
 

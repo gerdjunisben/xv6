@@ -27,7 +27,7 @@ void addSum(uint i)
 }
 
 
-void compute(uint j)
+void compute(float j)
 {
     for(int i = 0;i<10000 * j;i++)
     {
@@ -45,7 +45,15 @@ void compute(uint j)
 int main(int argc, char *argv[])
 {
    uint sum = 1;
-   uint pid = fork();
+   uint pid;
+   for(int i = 0;i<10;i++)
+   {
+     pid = fork();
+     if(pid ==0)
+     {
+        break;
+     }
+   }
    for(int j = 0;j<=4000;j++)
     {
        compute(1);
@@ -55,7 +63,7 @@ int main(int argc, char *argv[])
     }
     if(pid!=0)
     {
-        wait();
+        while(wait()!=-1);
     }
     printf(0,"%d\n",sum);
     exit();
