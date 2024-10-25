@@ -8,7 +8,7 @@
 #include "spinlock.h"
 
 
-#define CPU_SCHEDULER = 0
+#define CPU_SCHEDULER 0
 
 struct {
   struct spinlock lock;
@@ -28,6 +28,8 @@ extern void trapret(void);
 static void wakeup1(void *chan);
 static void sched(void);
 static struct proc *roundrobin(void);
+static struct proc *lowestUtil(void);
+static struct proc *highestWait(void);
 
 char *getState(enum procstate state) {
   switch(state) {
@@ -675,21 +677,18 @@ sched(void)
   }
 
   // Choose next process to run.
-  switch (CPU_SCHEDULER)
-  {
-  case 0:
-    p = roundrobin();
-    break;
+  switch(CPU_SCHEDULER){
+    case(0):
+      p = roundrobin();
+      break;
+    case(1):
+      p = lowestUtil();
+      break;
+    case(2):
+      p = highestWait();
+  }
 
-  case 1: 
-    break;
-
-  case 2:
-    break;   
-  default:
-    break;
-
-    if((p = roundrobin()) != 0) {
+    if((p) != 0) {
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -711,7 +710,7 @@ sched(void)
         mycpu()->intena = intena;
       }
     }
-  }
+  
   
 }
 
@@ -733,6 +732,70 @@ roundrobin()
     return p;
   }
   return 0;
+}
+
+static struct proc *
+lowestUtil()
+{
+  struct proc *lowest = 0;
+  int i;
+  for(i = 0; i < NPROC; i++) {
+    struct proc *p = &ptable.proc[i];
+    if(p->state == RUNNABLE)
+    {
+      lowest = p;
+      break;
+    }
+  }
+  if(lowest ==0)
+  {
+    return lowest;
+  }
+  i+=1;
+  for(; i < NPROC; i++) {
+    if(ptable.proc[i].state != RUNNABLE)
+      continue;
+    else
+    {
+      if(ptable.proc[i].cpuUtil < lowest->cpuUtil)
+      {
+        lowest = &ptable.proc[i];
+      }
+    }
+  }
+  return lowest;
+}
+
+static struct proc *
+highestWait()
+{
+  struct proc *highest = 0;
+  int i;
+  for(i = 0; i < NPROC; i++) {
+    struct proc *p = &ptable.proc[i];
+    if(p->state == RUNNABLE)
+    {
+      highest = p;
+      break;
+    }
+  }
+  if(highest ==0)
+  {
+    return highest;
+  }
+  i+=1;
+  for(; i < NPROC; i++) {
+    if(ptable.proc[i].state != RUNNABLE)
+      continue;
+    else
+    {
+      if(ptable.proc[i].waitPercent > highest->waitPercent)
+      {
+        highest = &ptable.proc[i];
+      }
+    }
+  }
+  return highest;
 }
 
 // Called from timer interrupt to reschedule the CPU.

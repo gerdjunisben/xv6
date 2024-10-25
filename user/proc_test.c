@@ -46,7 +46,8 @@ int main(int argc, char *argv[])
 {
    uint sum = 1;
    uint pid;
-   for(int i = 0;i<10;i++)
+   int i;
+   for(i = 1;i<5;i++)
    {
      pid = fork();
      sleep(5);
@@ -57,7 +58,7 @@ int main(int argc, char *argv[])
    }
    for(int j = 0;j<=4000;j++)
     {
-       compute(1);
+       compute(i);
 
 
         sleep(1);
