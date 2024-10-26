@@ -1,5 +1,12 @@
 include ../Makefile.inc
 
+ifndef CPU_SCHEDULER
+CPU_SCHEDULER = 0
+endif
+
+# Add the definition to CFLAGS
+CFLAGS += -DCPU_SCHEDULER=$(CPU_SCHEDULER)
+
 OBJS = \
 	bio.o\
 	console.o\

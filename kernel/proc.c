@@ -8,7 +8,9 @@
 #include "spinlock.h"
 
 
-#define CPU_SCHEDULER 0
+#ifndef CPU_SCHEDULER
+#define CPU_SCHEDULER
+#endif
 
 struct {
   struct spinlock lock;
@@ -306,6 +308,23 @@ void incProcs(void)
 
   release(&ptable.lock);
 }
+
+char *getCPUSchedName() {
+  if (CPU_SCHEDULER == 0) {
+    return "round robin";
+  }
+  else if (CPU_SCHEDULER == 1) {
+    return "lowest CPU % first";
+  }
+  else if (CPU_SCHEDULER == 2) {
+    return "highest wait % first";
+  }
+
+  else {
+    return "round robin";
+  }
+}
+
 
 void
 pinit(void)
@@ -677,17 +696,20 @@ sched(void)
   }
 
   // Choose next process to run.
-  switch(CPU_SCHEDULER){
-    case(0):
-      p = roundrobin();
-      break;
-    case(1):
-      p = lowestUtil();
-      break;
-    case(2):
-      p = highestWait();
+  if (CPU_SCHEDULER == 0) {
+    p = roundrobin();
+  }
+  else if (CPU_SCHEDULER == 1) {
+    p = lowestUtil();
+  }
+  else if (CPU_SCHEDULER == 2) {
+    p = highestWait();
   }
 
+  else {
+    p = roundrobin();
+  }
+      
     if((p) != 0) {
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -724,6 +746,7 @@ static struct proc *
 roundrobin()
 {
   // Loop over process table looking for process to run.
+  //cprintf("ROUND ROBIN\n");
   for(int i = 0; i < NPROC; i++) {
     struct proc *p = &ptable.proc[(i + rrindex + 1) % NPROC];
     if(p->state != RUNNABLE)
@@ -737,6 +760,7 @@ roundrobin()
 static struct proc *
 lowestUtil()
 {
+  //cprintf("LOWEST CPU\n");
   struct proc *lowest = 0;
   int i;
   for(i = 0; i < NPROC; i++) {
@@ -769,6 +793,7 @@ lowestUtil()
 static struct proc *
 highestWait()
 {
+  //cprintf("HIGHEST WAIT TIME\n");
   struct proc *highest = 0;
   int i;
   for(i = 0; i < NPROC; i++) {

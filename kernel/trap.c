@@ -83,10 +83,8 @@ trap(struct trapframe *tf)
       acquire(&tickslock);
       ticks++;
 
+      //cprintf("%d\n", CPU_SCHEDULER);
 
-      #ifdef CPU_SCHEDULER
-        cprintf("%d\n",CPU_SCHEDULER);
-      #endif
       // increment processes stats
       incProcs();
 
@@ -109,7 +107,7 @@ trap(struct trapframe *tf)
 
       // printout process statistics
       if (ticks % 1000 == 0) {
-        cprintf("\ncpus: %d, uptime: %d, load(x100): %d\n", ncpu, ticks, (uint)(100*getLoadAvg()));
+        cprintf("\ncpus: %d, uptime: %d, load(x100): %d, scheduler: %s\n", ncpu, ticks, (uint)(100*getLoadAvg()), getCPUSchedName());
         printProcs();
       }
 

@@ -139,6 +139,7 @@ void            updateLastHundred(void);
 void            updateUtil(void);
 void            updateWait(void);
 void            updateLatencyAvg(void);
+char*           getCPUSchedName(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
