@@ -23,19 +23,15 @@ Excercise 3:
     could've been fixed but we'd still probably have our wait issue so we ultimately decided
     each should get it's own.
 
-
 Excercise 4:
     We use that infastructure we made in excercise 3 and matter of fact use the same method and
     almost the same logic to update lastHundredWait.
-
 
 Excercise 5:
     Latency is weird, we actually thought the average latency and not the max was wanted at
     first and produced a funky algorithm that could do it for the past 100 ticks. Anyways
     after we figured out it was max we reused our latency array and go over it and find the 
     longest blurb of 1s to get the max.
-
-
 
 Excercise 6:
     The schedulers themselves were pretty reasonable, we iterate over the whole proc table
@@ -44,9 +40,11 @@ Excercise 6:
     However it's probably better looking at a subset rather than the whole array but
     having to constantly reposition these elems feels like it would be costly.
 
-
-
-
+    We added a MakeFile flag CPU_SCHEDULER to set the scheduler to run the xv6 OS. It can be set with
+    the following three values:
+        - 0: Round Robin
+        - 1: Lowest CPU % First (LCPUF)
+        - 2: Highest Wait % Fist (HWAITF)
 
 Analysis:
 
@@ -55,35 +53,68 @@ Analysis:
         - 2nd arg: Number of iterations for each computation/sleep cycle
         - 3rd arg: Mode that all processes will be running on [0: CPU Burst Mode, 1: I/O Burst Mode, 2: 50/50 Mode]
 
-    - One process test to see program behavior without scheduler intervention. Running the program with the following conditions:
+    - Mode behaviors:
+        Our test program can be ran with three different modes:
+            - CPU Burst Mode: This mode will perform 1 tick of CPU computation per iteration, and does not sleep 
+            between interations.
+            - I/O Burst: It will use the same computation scheme from CPU Burst Mode, but will sleep more than one 
+            tick per iteration.
+            - 50/50: Tuned up sleep time between iterations to achieve 50% computation 50% sleeping.
+
+        To show the behavior of these three modes in more detail, we ran One single process with each mode and 
+        logged the time, run time, and sleep time (The data can be found in the spreadsheet inside the HW3 data folder).
+        The data was collected running the proc_test program with the following settings:
         - Children processes: 0
-        - 20000 repetitions: We wanted to get data for 20 intervals, 1000 tick step between intervals. With 20000 repetitions we ensure the program won't stop before reaching that point.
+        - 20000 repetitions: We wanted to get data for 20 intervals, 1000 tick step between intervals. With 20000 repetitions 
+        we ensure the program won't stop before reaching that point.
         - Alternating between modes and registering data for each mode.
-        - The purpose of these measures is to get an idea of how the program behaves depending on the mode. This is going to be threated as a control for analysis when using more processes and different schedulers.
+        - The purpose of these measures is to get an idea of how the program behaves depending on the mode. This is going to 
+        be threated as a control for analysis when using more processes and different schedulers.
 
         Other environment conditions:
         - Round Robin Sched: Just default scheduler but is not going to make any difference since we are running only one test program
         - CPUS=1
         
-        Note: Wait time and latency not included because there are no other processes running
-
-
-    - Results: The results of this part of the analysis can be found in the spread sheet file, Sheet "Single Processes"
-
-    ...
-    ...
-    ...
-
+        Note: Wait time and latency are not included because there are no other processes running, so these values will not change over time
 
     - Multiple processes Running
-        - The purpose of these analysis is to compare how the different schedulers behave when facing different types of processes.
+        - The purpose of these analysis is to compare how the different schedulers behave when facing different types of processes and in 
+        different nature of processes. For each scheduler, we ran the program for a total time of 10000 ticks in all three different modes, 
+        and with 10 simultaneous processes. On each 1000 ticks step, we record the average CPU %, wait %, and latency of the ten processes being 
+        ran. All the data collected may be found in the spreadsheet inside the HW3 Data folder. 
 
+        - Round Robin (RR): No matter the nature of the process (i.e., CPU Burst Mode, I/O Burst Mode, or 50/50 Mode), you will see an equal share 
+        of CPU %, wait %, and latency among all the processes. In other words, most of the time all the processes will present the same values 
+        for these stats.
 
-        - Round Robin: No matter the nature of the process (aka CPU, I/O, or 50/50), you will see an equal share of CPU %, WAIT %, and latency among all the processes. All processes had same values most of the time
+        - Lowest CPU % First (LCPUF): This one presents the most unequal share of CPU %, wait %, and latency values between all processes. In other words, 
+        each process had different values for these stats most of the time. 
+        This scheduler is the only one trying to optimize the most CPU utilization for all processes. As a result, it presents the highest
+        overall average CPU % for the ten processes on every mode, and it tries to reach equal distribution of CPU resources (trying to 
+        give each process 10% CPU).
+        However, latencies are higher than Round Robin. Probably because if a process just exited the CPU, it will have to wait until all the other
+        processes pass through CPU.
 
-        - Lowest CPU % First: This one presents the most unequal share of CPU %, WAIT %, and latencies between all processes. Each process had different values most of the time. 
-        In general, CPU % first is the only scheduler that tries to bring all CPUS to 10%, having at avg of at most 9.7% Latencies are pretty bad in general, and wait % and latencies are not evenly distributed among processes. If faced to a bunch of CPU bound processes, wait % and latencies are worse than in RR, but it's compensated with all CPU % over 9 (trying to reach 10% for 10 simultaneous processes).
+        - Highesst wait % First (HWAITF): This one presents lower CPU % on average than LCPUF, but does a little better than Round Robin. 
+        In contrast with LCPUF, HWAITF wait %'s are evenly distributed among processes most of the time, presenting same values. However, this scheduler presents 
+        the worst performance in latencies when faced to a bunch I/O bound processes. Some processes reached latencies over 20! which is insane. To explain this,
+        let's analyze how HWAITF works. If there are a bunch of sleeping processes, when they wake up, they will enter the runnable queue. If a process is chosen, it's
+        because it had the highest wait % time. After this process is done with CPU and goes to sleep. During the sleep time, other processes are increasing their wait %
+        because the queue is constantly moving. When the process wakes up again, it turns out it will have to wait for a long time to overcome the wait % of all the processes
+        that were in the queue while this process was sleeping.
 
-        - Highesst wait % First: This one presents lower CPU % than LCPUF in general, but does a little better than Round Robin. Wait % are evenly distributed among processes, having same values most of the time. However, this one has the worst performance in latencies when faced to a bunch I/O bound processes. Some processes reached latencies over 20! which is insane. The reason might be that, if there are a lot of I/O bound processes, and you happen to have the highest wait % at that point, you will have to wait until a process overcomes yout wait %, giving a high latency. It also has the lowest CPU % for some processes reaching "equilibrium" with percentages of 8% when RR and LCPUF would be at 9% each process or more.
+        Why do latencies don't increase as much in LCPUF as in HWAITF? Because even while sleeping your CPU % will lower, which is benefitial by the time you wake up.
+        In other words, in HWAITF sleeping makes you waste time and foce you to spend more time in the queue when you wake up because your wait % will not be higher than 
+        before you went to sleep. In fact, when you wake up, your wait % could be even lower, which puts you in a lower priority in this scheduler.
+        In LCPUF, in contast, while you are sleeping your CPU % lowers even while you are sleeping, so when you wake up, you will have more priority in the queue.
 
-        It has the most stable wait % though.
+        Finally, HWAITF has the lowest CPU % average for each process being run. This means that, even though wait % are more stable, latencies are higher than the other
+        two schedulers, but CPU % for each process is lower than the values found for RR and LCPUF.
+
+        Conclusions:
+            - Round Robin is the most stable scheduler. Each process, no matter the nature, will have about same resources and stats from the other processes being ran.
+            - Lowest CPU % First maximizes CPU % for each process and tries to have an equal share of CPU for all the running processes. That's the goal of this shceduler.
+            However, it has unequal wait % among processes and higher latencies than Round Robin.
+            - Highest wait % First has an equal wait % for all processes, but unequal share of CPU % and latencies among processes.
+            - Highest wait % First has the worst latency performance
+            - Highest wait % First shares unequal ammounts of CPU among processes.
