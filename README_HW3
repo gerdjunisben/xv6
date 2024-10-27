@@ -13,10 +13,7 @@ Excercise 2:
 Excercise 3:
     Here's where we get a little funky, I'm gonna talk about our final version but I will
     note how we changed this to work better at the end. We give each proc a circular buffer
-    that holds the last 100 ticks with 0 being sleeping, 1 being runnable and 2 being running.
-    We could use the actual enums for those but I don't want anything to break while analysis
-    happens so just in case I'm keeping it 0,1,2 but if it is the enums in the final version
-    don't be surprised, if I forget I wrote this do be surprised. Anyways we update the
+    that holds the last 100 ticks with the enums used for state. Anyways we update the
     lastHundredRun each timer interrupt, if the new state is the same as the old keep
     lastHundredRun the same, if it's not decrement if not running increment if running.
     Also always update the current with the new state value.

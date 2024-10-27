@@ -128,22 +128,22 @@ void updateLastHundred()
       if((curr_proc->run_time + curr_proc->wait_time + curr_proc->sleep_time) >= 100)
       {
         //handle our lastHundredWait
-        if(curr_proc->state != RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == 1)
+        if(curr_proc->state != RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == RUNNABLE)
         {
           curr_proc->lastHundredWait-=1;
         }
-        else if(curr_proc->state == RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != 1)
+        else if(curr_proc->state == RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != RUNNABLE)
         {
           curr_proc->lastHundredWait+=1;
         } 
 
 
         //handle our lastHundredRun
-        if(curr_proc->state != RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == 2)
+        if(curr_proc->state != RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == RUNNING)
         {
           curr_proc->lastHundredRun-=1;
         }
-        else if(curr_proc->state == RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != 2)
+        else if(curr_proc->state == RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != RUNNING)
         {
           curr_proc->lastHundredRun+=1;
         } 
@@ -151,15 +151,15 @@ void updateLastHundred()
         //set current tick to respective number
         if(curr_proc->state == SLEEPING)
         {
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 0;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = SLEEPING;
         }
         else if (curr_proc->state == RUNNABLE)
         {
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 1;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = RUNNABLE;
         }
         else if(curr_proc->state == RUNNING)
         {
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 2;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = RUNNING;
         }
 
       }
@@ -169,12 +169,12 @@ void updateLastHundred()
         if(curr_proc->state == RUNNING)
         {
           curr_proc->lastHundredRun+= 1;
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 2;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = RUNNING;
         }
         else if(curr_proc->state == RUNNABLE)
         {
           curr_proc->lastHundredWait+=1;
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 1;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = RUNNABLE;
         }
       }
       curr_proc->tickBuffer.current++;
@@ -419,7 +419,7 @@ found:
   
   for(int i = 0;i<100;i++)
   {
-    p->tickBuffer.ticks[i] = 0;
+    p->tickBuffer.ticks[i] = SLEEPING;
     p->tickBuffer.latency[i] = 0;
   }
   p->tickBuffer.current = 0;
