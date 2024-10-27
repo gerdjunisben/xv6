@@ -55,11 +55,9 @@ void updateLatency(struct proc *curr_proc)
   if(curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current - 1)%100] == 0 && curr_proc->state == RUNNABLE)
   {
     curr_proc->isLatency = 1;
-    //curr_proc->latencyCount +=1;
     if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==0)
     {
       curr_proc->isOldLatency = 0;
-      curr_proc->latencyTicks+=1;
       curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 1;
     }
     else
@@ -67,7 +65,6 @@ void updateLatency(struct proc *curr_proc)
       if(curr_proc->isOldLatency == 0)
       {
         curr_proc->isOldLatency = 1;
-        //curr_proc->latencyCount -=1;
       }
     }
   }
@@ -76,7 +73,6 @@ void updateLatency(struct proc *curr_proc)
     if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==0)
     {
       curr_proc->isOldLatency = 0;
-      curr_proc->latencyTicks+=1;
       curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 1;
     }
     else
@@ -84,7 +80,6 @@ void updateLatency(struct proc *curr_proc)
       if(curr_proc->isOldLatency == 0)
       {
         curr_proc->isOldLatency = 1;
-        //curr_proc->latencyCount -=1;
       }
     }
   }
@@ -93,10 +88,6 @@ void updateLatency(struct proc *curr_proc)
     if(curr_proc->isLatency)
     {
       curr_proc->isLatency = 0;
-      if(curr_proc->maxLatencyTicks < curr_proc->latencyTicks)
-      {
-        curr_proc->maxLatencyTicks = curr_proc->latencyTicks;
-      }
     }
     if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==1)
     {
@@ -105,7 +96,6 @@ void updateLatency(struct proc *curr_proc)
         curr_proc->isOldLatency = 1;
         //curr_proc->latencyCount -=1;
       }
-      curr_proc->latencyTicks-=1;
       curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 0;
     }
     else

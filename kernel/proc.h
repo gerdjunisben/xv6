@@ -67,10 +67,7 @@ struct proc {
   uint lastHundredRun;
   uint lastHundredWait;
   
-  uint latencyCount;
-  uint latencyTicks;
-  uint maxLatencyTicks;
-  uint maxLatencyIndex;
+
   uint isLatency;
   uint isOldLatency;
   

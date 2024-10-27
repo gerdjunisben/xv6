@@ -1,25 +1,51 @@
 Excercise 1:
-
+    We made an incProcs method in proc that is called each time a timer interupt that
+    increments the run_time, sleep_time and wait_time for each proc depending on what 
+    state the proc is in. Pretty straight forward.
 
 
 Excercise 2:
-
+    We calculated the smoothing factor using a time const of 6000 ticks and used the resulting
+    smoothing factor to write updateLoadAvg that updates the loadAverage variable each time
+    it's called on timer interrupt using the count of processes each time it's called.
 
 
 Excercise 3:
+    Here's where we get a little funky, I'm gonna talk about our final version but I will
+    note how we changed this to work better at the end. We give each proc a circular buffer
+    that holds the last 100 ticks with 0 being sleeping, 1 being runnable and 2 being running.
+    We could use the actual enums for those but I don't want anything to break while analysis
+    happens so just in case I'm keeping it 0,1,2 but if it is the enums in the final version
+    don't be surprised, if I forget I wrote this do be surprised. Anyways we update the
+    lastHundredRun each timer interrupt, if the new state is the same as the old keep
+    lastHundredRun the same, if it's not decrement if not running increment if running.
+    Also always update the current with the new state value.
 
+    This is the growing pains part, we had one global buffer but it A: didn't work well for
+    excercise 4 and B: didn't work right when multiple processes were involved which I think
+    could've been fixed but we'd still probably have our wait issue so we ultimately decided
+    each should get it's own.
 
 
 Excercise 4:
-
+    We use that infastructure we made in excercise 3 and matter of fact use the same method and
+    almost the same logic to update lastHundredWait.
 
 
 Excercise 5:
-
+    Latency is weird, we actually thought the average latency and not the max was wanted at
+    first and produced a funky algorithm that could do it for the past 100 ticks. Anyways
+    after we figured out it was max we reused our latency array and go over it and find the 
+    longest blurb of 1s to get the max.
 
 
 
 Excercise 6:
+    The schedulers themselves were pretty reasonable, we iterate over the whole proc table
+    though you could probably get better performance from a priority queue though it may not
+    work great since cpu and wait percent may change while elems are in the queue tick to tick.
+    However it's probably better looking at a subset rather than the whole array but
+    having to constantly reposition these elems feels like it would be costly.
 
 
 
