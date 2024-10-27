@@ -1,0 +1,66 @@
+Excercise 1:
+
+
+
+Excercise 2:
+
+
+
+Excercise 3:
+
+
+
+Excercise 4:
+
+
+
+Excercise 5:
+
+
+
+
+Excercise 6:
+
+
+
+
+
+Analysis:
+
+    - The Test Program: The test program is named "proc_test". This one receives three arguments as follows:
+        - 1st arg: The number of children processes for the parent to fork
+        - 2nd arg: Number of iterations for each computation/sleep cycle
+        - 3rd arg: Mode that all processes will be running on [0: CPU Burst Mode, 1: I/O Burst Mode, 2: 50/50 Mode]
+
+    - One process test to see program behavior without scheduler intervention. Running the program with the following conditions:
+        - Children processes: 0
+        - 20000 repetitions: We wanted to get data for 20 intervals, 1000 tick step between intervals. With 20000 repetitions we ensure the program won't stop before reaching that point.
+        - Alternating between modes and registering data for each mode.
+        - The purpose of these measures is to get an idea of how the program behaves depending on the mode. This is going to be threated as a control for analysis when using more processes and different schedulers.
+
+        Other environment conditions:
+        - Round Robin Sched: Just default scheduler but is not going to make any difference since we are running only one test program
+        - CPUS=1
+        
+        Note: Wait time and latency not included because there are no other processes running
+
+
+    - Results: The results of this part of the analysis can be found in the spread sheet file, Sheet "Single Processes"
+
+    ...
+    ...
+    ...
+
+
+    - Multiple processes Running
+        - The purpose of these analysis is to compare how the different schedulers behave when facing different types of processes.
+
+
+        - Round Robin: No matter the nature of the process (aka CPU, I/O, or 50/50), you will see an equal share of CPU %, WAIT %, and latency among all the processes. All processes had same values most of the time
+
+        - Lowest CPU % First: This one presents the most unequal share of CPU %, WAIT %, and latencies between all processes. Each process had different values most of the time. 
+        In general, CPU % first is the only scheduler that tries to bring all CPUS to 10%, having at avg of at most 9.7% Latencies are pretty bad in general, and wait % and latencies are not evenly distributed among processes. If faced to a bunch of CPU bound processes, wait % and latencies are worse than in RR, but it's compensated with all CPU % over 9 (trying to reach 10% for 10 simultaneous processes).
+
+        - Highesst wait % First: This one presents lower CPU % than LCPUF in general, but does a little better than Round Robin. Wait % are evenly distributed among processes, having same values most of the time. However, this one has the worst performance in latencies when faced to a bunch I/O bound processes. Some processes reached latencies over 20! which is insane. The reason might be that, if there are a lot of I/O bound processes, and you happen to have the highest wait % at that point, you will have to wait until a process overcomes yout wait %, giving a high latency. It also has the lowest CPU % for some processes reaching "equilibrium" with percentages of 8% when RR and LCPUF would be at 9% each process or more.
+
+        It has the most stable wait % though.
