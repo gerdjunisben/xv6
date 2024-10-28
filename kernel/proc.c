@@ -52,14 +52,12 @@ void updateLatency(struct proc *curr_proc)
 {
   //no locking of ptable since only called in method that already locks it
 
-  if(curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current - 1)%100] == 0 && curr_proc->state == RUNNABLE)
+  if(curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current - 1)%100] == SLEEPING && curr_proc->state == RUNNABLE)
   {
     curr_proc->isLatency = 1;
-    //curr_proc->latencyCount +=1;
-    if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==0)
+    if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==SLEEPING)
     {
       curr_proc->isOldLatency = 0;
-      //curr_proc->latencyTicks+=1;
       curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 1;
     }
     else
@@ -67,7 +65,6 @@ void updateLatency(struct proc *curr_proc)
       if(curr_proc->isOldLatency == 0)
       {
         curr_proc->isOldLatency = 1;
-        //curr_proc->latencyCount -=1;
       }
     }
   }
@@ -76,7 +73,6 @@ void updateLatency(struct proc *curr_proc)
     if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==0)
     {
       curr_proc->isOldLatency = 0;
-      //curr_proc->latencyTicks+=1;
       curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 1;
     }
     else
@@ -84,7 +80,6 @@ void updateLatency(struct proc *curr_proc)
       if(curr_proc->isOldLatency == 0)
       {
         curr_proc->isOldLatency = 1;
-        //curr_proc->latencyCount -=1;
       }
     }
   }
@@ -93,19 +88,13 @@ void updateLatency(struct proc *curr_proc)
     if(curr_proc->isLatency)
     {
       curr_proc->isLatency = 0;
-      // if(curr_proc->maxLatencyTicks < curr_proc->latencyTicks)
-      // {
-      //   curr_proc->maxLatencyTicks = curr_proc->latencyTicks;
-      // }
     }
     if(curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100]==1)
     {
       if(curr_proc->isOldLatency == 0)
       {
         curr_proc->isOldLatency = 1;
-        //curr_proc->latencyCount -=1;
       }
-      //curr_proc->latencyTicks-=1;
       curr_proc->tickBuffer.latency[(curr_proc->tickBuffer.current)%100] = 0;
     }
     else
@@ -128,9 +117,6 @@ void updateLastHundred()
     }
     else
     {
-      //SLEEPING = 0
-      //RUNNABLE = 1
-      //RUNNING = 2
       if(curr_proc->tickBuffer.current > 0)
       {
         updateLatency(curr_proc);
@@ -138,22 +124,22 @@ void updateLastHundred()
       if((curr_proc->run_time + curr_proc->wait_time + curr_proc->sleep_time) >= 100)
       {
         //handle our lastHundredWait
-        if(curr_proc->state != RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == 1)
+        if(curr_proc->state != RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == RUNNABLE)
         {
           curr_proc->lastHundredWait-=1;
         }
-        else if(curr_proc->state == RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != 1)
+        else if(curr_proc->state == RUNNABLE && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != RUNNABLE)
         {
           curr_proc->lastHundredWait+=1;
         } 
 
 
         //handle our lastHundredRun
-        if(curr_proc->state != RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == 2)
+        if(curr_proc->state != RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] == RUNNING)
         {
           curr_proc->lastHundredRun-=1;
         }
-        else if(curr_proc->state == RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != 2)
+        else if(curr_proc->state == RUNNING && curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] != RUNNING)
         {
           curr_proc->lastHundredRun+=1;
         } 
@@ -161,15 +147,15 @@ void updateLastHundred()
         //set current tick to respective number
         if(curr_proc->state == SLEEPING)
         {
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 0;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = SLEEPING;
         }
         else if (curr_proc->state == RUNNABLE)
         {
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 1;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = RUNNABLE;
         }
         else if(curr_proc->state == RUNNING)
         {
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 2;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = RUNNING;
         }
 
       }
@@ -179,12 +165,12 @@ void updateLastHundred()
         if(curr_proc->state == RUNNING)
         {
           curr_proc->lastHundredRun+= 1;
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 2;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = RUNNING;
         }
         else if(curr_proc->state == RUNNABLE)
         {
           curr_proc->lastHundredWait+=1;
-          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = 1;
+          curr_proc->tickBuffer.ticks[(curr_proc->tickBuffer.current)%100] = RUNNABLE;
         }
       }
       curr_proc->tickBuffer.current++;
