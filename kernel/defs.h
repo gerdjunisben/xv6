@@ -131,14 +131,7 @@ void            wakeup(void*);
 void            yield(void);
 
 //our stuff for HW3
-void            incProcs(void);
-void            printProcs(void);
-void            updateLoadAvg(void);
-float           getLoadAvg(void);
-void            updateLastHundred(void);
-void            updateUtil(void);
-void            updateWait(void);
-void            updateLatencyAvg(void);
+void            procStats(uint);
 char*           getCPUSchedName(void);
 
 // swtch.S

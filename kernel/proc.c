@@ -44,6 +44,9 @@ char *getState(enum procstate state) {
   }
 }
 
+
+
+
 float getLoadAvg(void) {
   return loadAverage;
 }
@@ -108,7 +111,7 @@ void updateLatency(struct proc *curr_proc)
 
 void updateLastHundred()
 {
-  acquire(&ptable.lock);
+
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
     if(curr_proc->state == UNUSED)
@@ -177,33 +180,33 @@ void updateLastHundred()
     }
   }
   
-  release(&ptable.lock);
+  
 }
 
 void updateUtil()
 {
-  acquire(&ptable.lock);
+
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
     curr_proc->cpuUtil = ((0.999232766* curr_proc->cpuUtil) + ((1.0 - 0.999232766) * curr_proc->lastHundredRun));
   }
-  release(&ptable.lock);
+
 }
 
 
 void updateWait()
 {
-  acquire(&ptable.lock);
+
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
     curr_proc->waitPercent = ((0.999232766* curr_proc->waitPercent) + ((1.0 - 0.999232766) * curr_proc->lastHundredWait));
   }
-  release(&ptable.lock);
+
 }
 
 void updateLatencyAvg()
 {
-  acquire(&ptable.lock);
+
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
     int max = 0;
@@ -225,14 +228,14 @@ void updateLatencyAvg()
     }
     curr_proc->avgLatency = ((0.999232766* curr_proc->avgLatency) + ((1.0 - 0.999232766) * max));
   }
-  release(&ptable.lock);
+
 }
 
 
 
 void updateLoadAvg(void)
 {
-  acquire(&ptable.lock);
+
   float num_processes = 0.0;
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
@@ -240,12 +243,12 @@ void updateLoadAvg(void)
       num_processes++;
   }
   loadAverage =  (0.999616 * loadAverage) + ((1 - 0.999616) * num_processes);
-  release(&ptable.lock);
+
 }
 
 void printProcs(void)
 {
-  acquire(&ptable.lock);
+
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
     if(curr_proc->state == UNUSED)
@@ -268,13 +271,13 @@ void printProcs(void)
       cprintf("Last 100 %d\n",sum);*/
     }
   }
-  release(&ptable.lock);
+
 }
 
 
 void incProcs(void)
 {
-  acquire(&ptable.lock);
+
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
 
@@ -292,7 +295,40 @@ void incProcs(void)
     }
   }
 
-  release(&ptable.lock);
+
+}
+
+void procStats(uint ticks)
+{
+  acquire(&ptable.lock);
+   //cprintf("%d\n", CPU_SCHEDULER);
+
+    // increment processes stats
+    incProcs();
+
+    //update load average
+    updateLoadAvg();
+
+    //update last hundred ticks
+    updateLastHundred();
+
+    //update cpu util percent
+    updateUtil();
+
+
+    //update wait percent
+    updateWait();
+
+    //update latency
+    updateLatencyAvg();
+      
+
+    // printout process statistics
+    if (ticks % 1000 == 0) {
+      cprintf("\ncpus: %d, uptime: %d, load(x100): %d, scheduler: %s\n", ncpu, ticks, (uint)(100*getLoadAvg()), getCPUSchedName());
+      printProcs();
+    }
+    release(&ptable.lock);
 }
 
 char *getCPUSchedName() {

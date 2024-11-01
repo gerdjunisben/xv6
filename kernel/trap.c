@@ -83,33 +83,7 @@ trap(struct trapframe *tf)
       acquire(&tickslock);
       ticks++;
 
-      //cprintf("%d\n", CPU_SCHEDULER);
-
-      // increment processes stats
-      incProcs();
-
-      //update load average
-      updateLoadAvg();
-
-      //update last hundred ticks
-      updateLastHundred();
-
-      //update cpu util percent
-      updateUtil();
-
-
-      //update wait percent
-      updateWait();
-
-      //update latency
-      updateLatencyAvg();
-      
-
-      // printout process statistics
-      if (ticks % 1000 == 0) {
-        cprintf("\ncpus: %d, uptime: %d, load(x100): %d, scheduler: %s\n", ncpu, ticks, (uint)(100*getLoadAvg()), getCPUSchedName());
-        printProcs();
-      }
+      procStats(ticks);
 
       wakeup(&ticks);
       release(&tickslock);
