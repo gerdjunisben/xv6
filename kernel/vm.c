@@ -29,7 +29,8 @@ static struct{
 
 int coreAdd(char* pa)
 {
-  cprintf("Adding %p\n",pa);
+  //pa = (char*)V2P(pa);
+  //cprintf("Adding %p\n",pa);
   if(coreMap.use_lock)
       acquire(&coreMap.lock);
 
@@ -47,7 +48,7 @@ int coreAdd(char* pa)
   newPage->physical = pa;
   newPage->refCount = 1;
   coreMap.allocedPages +=1;
-  cprintf("There are %d pages in coreMap\n",coreMap.allocedPages);
+  //cprintf("There are %d pages in coreMap\n",coreMap.allocedPages);
 
   if(coreMap.use_lock)
     release(&coreMap.lock);
@@ -58,14 +59,13 @@ int coreAdd(char* pa)
 char* coreAlloc()
 {
   char* page = kalloc();
-  coreAdd(page);
+  coreAdd((char*)V2P(page));
   return page;
 }
 
 int coreIncrement(char* va)
 {
-  va = P2V(va);
-  cprintf("Looking to inc %p\n",va);
+  //cprintf("Looking to inc %p\n",va);
   if(coreMap.use_lock)
       acquire(&coreMap.lock);
 
@@ -73,10 +73,11 @@ int coreIncrement(char* va)
   int i = 0;
   while(newPage->physical!=va)
   {
+    /*
     if(newPage->physical!=0)
     {
       cprintf("Seeing %p\n",newPage->physical);
-    }
+    }*/
     if(i++==4096)
     {
       if(coreMap.use_lock)
@@ -85,7 +86,7 @@ int coreIncrement(char* va)
     }
     newPage = &coreMap.pages[coreMap.pageIndex++ % 4096];
   }
-  cprintf("Success\n");
+  //cprintf("Success\n");
   newPage->refCount+=1;
 
   if(coreMap.use_lock)
@@ -95,6 +96,7 @@ int coreIncrement(char* va)
 
 int coreRemove(char* pa)
 {
+  pa = (char*)V2P(pa);
   cprintf("Removing %p\n",pa);
   if(coreMap.use_lock)
       acquire(&coreMap.lock);
@@ -121,7 +123,7 @@ int coreRemove(char* pa)
   if(newPage->refCount==0)
   {
     coreMap.allocedPages -=1;
-    kfree(newPage->physical);
+    kfree(P2V(newPage->physical));
     newPage->physical = 0;
     cprintf("There are %d pages in coreMap\n",coreMap.allocedPages);
     if(coreMap.use_lock)
@@ -380,10 +382,50 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     }
     memset(mem, 0, PGSIZE);
     cprintf("Allocuvm mappage\n");
+    cprintf("mem %p, a %p\n",V2P(mem),a);
     if(mappages(pgdir, (char*)a, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
       cprintf("allocuvm out of memory (2)\n");
       deallocuvm(pgdir, newsz, oldsz);
       coreRemove(mem);
+      return 0;
+    }
+  }
+  return newsz;
+}
+
+int
+allocuvmstack(pde_t *pgdir, uint oldsz, uint newsz)
+{
+  cprintf("allocating page table\n");
+  char *mem;
+  uint a;
+
+  if(newsz >= KERNBASE)
+    return 0;
+  if(newsz < oldsz)
+    return oldsz;
+
+
+  a = PGROUNDUP(oldsz);
+  cprintf("New %p, old %p\n",newsz,a);
+  for(; a < newsz; a += PGSIZE){
+    mem = kalloc();
+
+
+
+
+    if(mem == 0){
+      cprintf("allocuvm out of memory\n");
+      deallocuvm(pgdir, newsz, oldsz);
+      return 0;
+    }
+    memset(mem, 0, PGSIZE);
+    cprintf("Allocuvm mappage\n");
+    cprintf("mem %p, a %p\n",V2P(mem),a);
+    if(mappages(pgdir, (char*)a, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+      cprintf("allocuvm out of memory (2)\n");
+      deallocuvm(pgdir, newsz, oldsz);
+      kfree(mem);
       return 0;
     }
   }
@@ -472,7 +514,7 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
 
 
   //data and code copy
-  
+  /*
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
@@ -486,23 +528,25 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
     //cprintf("i %p\n",i);
     if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
       goto bad;
-  }
-  
- /*
+  }*/
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte) & ~PTE_W;
-    char* mem = (char*)PTE_ADDR(*pte);
-    coreIncrement(mem);
-    cprintf("Copyvm mappage\n");
-    if(mappages(d, (void*)i, PGSIZE, (uint)mem, flags) < 0)
+    *pte &= ~PTE_W;
+    flags = PTE_FLAGS(*pte);
+    coreIncrement((char*) pa);
+    //cprintf("Copyvm mappage\n");
+    cprintf("i is %p\n",i);
+    if(mappages(d, (void*)i, PGSIZE, (uint)pa, flags) < 0)
       goto bad;
-  }*/
+  }
 
+  //panic("Wa la");
+
+ 
 
   //stack copy
   for(uint stackTop = KERNBASE-stackSize;stackTop<KERNBASE-4  ;stackTop+=PGSIZE)
@@ -513,12 +557,12 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    if((mem = coreAlloc()) == 0)
+    if((mem = kalloc()) == 0)
       goto bad;
     memmove(mem, (char*)P2V(pa), PGSIZE);
-    //cprintf("StackTop %p\n",stackTop);
+    cprintf("StackTop %p\n",stackTop);
     cprintf("Copyvm stack mappage\n");
-    if(mappages(d, (void*)stackTop, PGSIZE, V2P(mem), flags) < 0)
+    if(mappages(d, (void*)stackTop, PGSIZE, V2P(mem), flags & PTE_W) < 0)
       goto bad;
   }
 
@@ -571,7 +615,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 }
 
 
-
+/*
 int splitPage(char* page,pde_t * pgdir)
 {
   cprintf("Trying to split %p\n",page);
@@ -617,13 +661,10 @@ int splitPage(char* page,pde_t * pgdir)
     return -1;
   }
 
-  
-
-  
   if(coreMap.use_lock)
     release(&coreMap.lock);
   return 0;
-}
+}*/
 
 //PAGEBREAK!
 // Blank page.

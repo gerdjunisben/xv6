@@ -563,7 +563,7 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&ptable.lock);
-
+  //panic("Fork complete");
   return pid;
 }
 

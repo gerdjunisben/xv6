@@ -56,21 +56,33 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_PGFLT:
+
+    // uint err_code = tf->err;
+
+    // //pagefault = 7 write access failure
+
+    // uint va = rcr2();
+    // pte_t *pte = walkpgr(myproc()->pgdir, va, 0);
+
+    // if (!(*pte & PTE_W)) {
+
+    // }
+
     uint stackSize = myproc()->stackSize;
 
     uint newStackSize =(KERNBASE - 4) - tf->esp;
 
-    if (newStackSize > MAX_STACK_SIZE) {
+    if (newStackSize > MAX_STACK_SIZE ) {
       cprintf("Segfault\n");
       panic("womp womp");
       kill(myproc()->pid);
       lapiceoi();
       break;
     }
-
+    cprintf("Trying to expand stack\n");
     uint oldStackBot = (KERNBASE -4) - stackSize;
     uint newStackBot = tf->esp;
-    if (allocuvm(myproc()->pgdir,  oldStackBot, newStackBot) == 0) {
+    if (allocuvmstack(myproc()->pgdir,  oldStackBot, newStackBot) == 0) {
       kill(myproc()->pid);
     }
     else
