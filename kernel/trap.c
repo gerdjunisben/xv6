@@ -62,6 +62,7 @@ trap(struct trapframe *tf)
 
     if (newStackSize > MAX_STACK_SIZE) {
       cprintf("Segfault\n");
+      panic("womp womp");
       kill(myproc()->pid);
       lapiceoi();
       break;

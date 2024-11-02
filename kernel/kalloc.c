@@ -14,7 +14,6 @@ extern char end[]; // first address after kernel loaded from ELF file
                    // defined by the kernel linker script in kernel.ld
 
 struct run {
-  uint refCount;
   struct run *next;
 };
 
@@ -54,18 +53,23 @@ initfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  // Fill with junk to catch dangling refs.
-  memset(v, 1, PGSIZE);
-
+  
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = (struct run*)v;
+  // Fill with junk to catch dangling refs.
+  memset(v, 1, PGSIZE);
+
+  
   r->next = kmem.freelist;
-  r->refCount = 0;
   kmem.freelist = r;
+  //kmem.num_allocpages--;
+  //cprintf("There are %d pages now\n",kmem.num_allocpages);
   if(kmem.use_lock)
     release(&kmem.lock);
 }
+
+
 
 void
 freerange(void *vstart, void *vend)
@@ -92,17 +96,14 @@ kfree(char *v)
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = (struct run*)v;
-  if(r->refCount == 0)
-  {
-    // Fill with junk to catch dangling refs.
-    memset(v, 1, PGSIZE);
+  // Fill with junk to catch dangling refs.
+  memset(v, 1, PGSIZE);
 
   
-    r->next = kmem.freelist;
-    kmem.freelist = r;
-    kmem.num_allocpages--;
-    cprintf("There are %d pages now\n",kmem.num_allocpages);
-  }
+  r->next = kmem.freelist;
+  kmem.freelist = r;
+  kmem.num_allocpages--;
+  //cprintf("There are %d pages now\n",kmem.num_allocpages);
   if(kmem.use_lock)
     release(&kmem.lock);
 }
@@ -124,7 +125,7 @@ kalloc(void)
   {
     kmem.freelist = r->next;
     kmem.num_allocpages++;
-    cprintf("There are %d pages now\n", kmem.num_allocpages);
+    //cprintf("There are %d pages now\n", kmem.num_allocpages);
   }
   if(kmem.use_lock)
     release(&kmem.lock);
