@@ -56,6 +56,11 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_PGFLT:
+
+    
+
+
+
     uint stackSize = myproc()->stackSize;
 
     uint newStackSize =(KERNBASE - 4) - tf->esp;
@@ -83,7 +88,7 @@ trap(struct trapframe *tf)
       acquire(&tickslock);
       ticks++;
 
-      procStats(ticks);
+      //procStats(ticks);
 
       wakeup(&ticks);
       release(&tickslock);

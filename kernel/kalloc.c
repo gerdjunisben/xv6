@@ -21,6 +21,7 @@ struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
+  uint refCounts[PHYSTOP/PGSIZE];  ///PHYSTOP is the end of physical memory divided by PGSIZE is 1 for each page
 } kmem;
 
 // Initialization happens in two phases.
@@ -33,6 +34,9 @@ kinit1(void *vstart, void *vend)
 {
   initlock(&kmem.lock, "kmem");
   kmem.use_lock = 0;
+  uint refs = PHYSTOP/PGSIZE;
+  for(int i = 0;i<refs;i++)
+    kmem.refCounts[i] = 0;
   freerange(vstart, vend);
 }
 
@@ -64,14 +68,23 @@ kfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  // Fill with junk to catch dangling refs.
-  memset(v, 1, PGSIZE);
-
+  int ref = V2P(v)/PGSIZE;
   if(kmem.use_lock)
-    acquire(&kmem.lock);
-  r = (struct run*)v;
-  r->next = kmem.freelist;
-  kmem.freelist = r;
+      acquire(&kmem.lock);
+  if(kmem.refCounts[ref]>0)
+  {
+    kmem.refCounts[ref]-=1;
+  }
+  if(kmem.refCounts[ref] ==0)
+  {
+    // Fill with junk to catch dangling refs.
+    memset(v, 1, PGSIZE);
+
+  
+    r = (struct run*)v;
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+  }
   if(kmem.use_lock)
     release(&kmem.lock);
 }
@@ -84,14 +97,33 @@ kalloc(void)
 {
   struct run *r;
 
+
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
+  int ref = V2P(r)/PGSIZE;
+  kmem.refCounts[ref]+=1;
   if(kmem.use_lock)
     release(&kmem.lock);
   return (char*)r;
+}
+
+
+void incrementRefs(char* v)
+{
+
+  if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+    panic("incrementRefs");
+
+  int ref = V2P(v)/PGSIZE;
+  if(kmem.use_lock)
+      acquire(&kmem.lock);
+  kmem.refCounts[ref]+=1;
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
 }
 
 
