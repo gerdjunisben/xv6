@@ -111,19 +111,51 @@ kalloc(void)
 }
 
 
-void incrementRefs(char* v)
+void incrementRefs(uint v)
 {
 
-  if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
-    panic("incrementRefs");
+  //if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+    //panic("incrementRefs");
 
-  int ref = V2P(v)/PGSIZE;
+  int ref = v/PGSIZE;
+  cprintf("Incrementing %p\n",v);
   if(kmem.use_lock)
       acquire(&kmem.lock);
   kmem.refCounts[ref]+=1;
 
   if(kmem.use_lock)
     release(&kmem.lock);
+}
+
+void decrementRefs(uint v)
+{
+
+  //if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+    //panic("decrementRefs");
+
+  int ref = v/PGSIZE;
+  if(kmem.use_lock)
+      acquire(&kmem.lock);
+  kmem.refCounts[ref]-=1;
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
+}
+
+uint getRefs(uint v)
+{
+  //if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+    //panic("getRefs");
+
+  uint count = 0;
+  int ref = v/PGSIZE;
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+  count = kmem.refCounts[ref];
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
+  return count;
 }
 
 

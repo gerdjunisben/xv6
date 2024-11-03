@@ -29,6 +29,10 @@ seginit(void)
   lgdt(c->gdt, sizeof(c->gdt));
 }
 
+
+
+
+
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
@@ -52,6 +56,18 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
     *pde = V2P(pgtab) | PTE_P | PTE_W | PTE_U;
   }
   return &pgtab[PTX(va)];
+}
+
+
+uint* walkTrap(uint* pgdir,char* va,int alloc)
+{
+  return walkpgdir(pgdir,va,alloc);
+}
+
+void switchPtePa(uint* pte, uint pa)
+{
+  uint perm = PTE_ADDR(pte) & PTE_W;
+  *pte = pa | perm |  PTE_P;
 }
 
 // Create PTEs for virtual addresses starting at va that refer to
@@ -336,10 +352,10 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
     pa = PTE_ADDR(*pte);
     *pte &= ~PTE_W;
     flags = PTE_FLAGS(*pte);
-    incrementRefs(P2V(pa));
     //cprintf("Copyvm mappage\n");
     if(mappages(d, (void*)i, PGSIZE, (uint)pa, flags) < 0)
       goto bad;
+    incrementRefs(pa);
   }
 
 

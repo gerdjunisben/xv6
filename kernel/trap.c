@@ -57,30 +57,58 @@ trap(struct trapframe *tf)
   switch(tf->trapno){
   case T_PGFLT:
 
-    
+    uint err_code = tf->err;
 
 
+    if(err_code == 7)
+    {
+      uint va = rcr2();
+      //cprintf("va %p, pa %p\n",va,V2P(va));
+      pte_t *pte = walkTrap(myproc()->pgdir,(char*)va, 0);
+      uint pa = V2P(va);
+      //cprintf("pa %p\n",pa);
+      uint refs =  getRefs(pa);
 
-    uint stackSize = myproc()->stackSize;
+      if(refs == 1)
+      {   //our buddies made copies we can write on the one that is officially ours
+        cprintf("Mine now :)\n");
+        *pte &=PTE_W;
+      }
+      else
+      {
+        cprintf("Dupping\n");
+        char* newPage = kalloc();
+        switchPtePa(pte, (uint)newPage);
 
-    uint newStackSize =(KERNBASE - 4) - tf->esp;
 
-    if (newStackSize > MAX_STACK_SIZE) {
-      cprintf("Segfault\n");
-      kill(myproc()->pid);
-      lapiceoi();
-      break;
-    }
-
-    uint oldStackBot = (KERNBASE -4) - stackSize;
-    uint newStackBot = tf->esp;
-    if (allocuvm(myproc()->pgdir,  oldStackBot, newStackBot) == 0) {
-      kill(myproc()->pid);
+        decrementRefs(pa);
+        //panic("wa la");
+      }
     }
     else
     {
-      myproc()->stackSize += newStackSize;
+      uint stackSize = myproc()->stackSize;
+
+      uint newStackSize =(KERNBASE - 4) - tf->esp;
+
+      if (newStackSize > MAX_STACK_SIZE) {
+        cprintf("Segfault\n");
+        kill(myproc()->pid);
+        lapiceoi();
+        break;
+      }
+
+      uint oldStackBot = (KERNBASE -4) - stackSize;
+      uint newStackBot = tf->esp;
+      if (allocuvm(myproc()->pgdir,  oldStackBot, newStackBot) == 0) {
+        kill(myproc()->pid);
+      }
+      else
+      {
+        myproc()->stackSize += newStackSize;
+      }
     }
+  
     lapiceoi();
     break;
   case T_IRQ0 + IRQ_TIMER:

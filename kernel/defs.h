@@ -69,7 +69,9 @@ void            ioapicinit(void);
 // kalloc.c
 char*           kalloc(void);
 void            kfree(char*);
-void            incrementRefs(char*);
+void            incrementRefs(uint);
+void            decrementRefs(uint);
+uint            getRefs(uint);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
 
@@ -199,6 +201,8 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+uint*           walkTrap(uint*,char*,int);
+void            switchPtePa(uint*, uint );
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
