@@ -69,6 +69,9 @@ void            ioapicinit(void);
 // kalloc.c
 char*           kalloc(void);
 void            kfree(char*);
+void            incrementRefs(uint);
+void            decrementRefs(uint);
+uint            getRefs(uint);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
 
@@ -199,8 +202,10 @@ void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 
-void            coreinit(void);
-int             allocuvmstack(pde_t*, uint, uint);
+//HW4
+void            stackSizeHandler(uint esp);
+void            copyOnWriteHandler();
+
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
