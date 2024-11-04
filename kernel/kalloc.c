@@ -71,11 +71,9 @@ kfree(char *v)
   int ref = V2P(v)/PGSIZE;
   if(kmem.use_lock)
       acquire(&kmem.lock);
-  if(kmem.refCounts[ref]>0)
-  {
-    kmem.refCounts[ref]-=1;
-  }
-  if(kmem.refCounts[ref] ==0)
+
+  //Just shortened conditionals a little
+  if(kmem.refCounts[ref] == 0 || --kmem.refCounts[ref] == 0)
   {
     // Fill with junk to catch dangling refs.
     memset(v, 1, PGSIZE);

@@ -406,7 +406,6 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
   pde_t *d;
   pte_t *pte;
   uint pa, i, flags;
-  char *mem;
 
   if((d = setupkvm()) == 0)
     return 0;
@@ -432,14 +431,15 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
+
+    *pte &= ~PTE_W;
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char*)P2V(pa), PGSIZE);
     //cprintf("StackTop %p\n",stackTop);
-    if(mappages(d, (void*)stackTop, PGSIZE, V2P(mem), flags) < 0)
+    if(mappages(d, (void*)stackTop, PGSIZE, pa, flags) < 0)
       goto bad;
+    
+    incrementRefs(pa);
   }
 
   // Flush Cache
