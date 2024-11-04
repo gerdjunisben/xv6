@@ -535,7 +535,6 @@ fork(void)
 
   // Copy process state from proc.
   //cprintf("The fucking stack size %d\n",curproc->stackSize);
-
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz, curproc->stackSize)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
@@ -563,7 +562,7 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&ptable.lock);
-  //panic("Fork complete");
+
   return pid;
 }
 
