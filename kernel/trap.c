@@ -57,9 +57,11 @@ trap(struct trapframe *tf)
   switch(tf->trapno){
   case T_PGFLT:
 
+
     uint err_code = tf->err;
     if(err_code == 7)
       copyOnWriteHandler();
+
 
     else
       stackSizeHandler(tf->esp);
@@ -71,7 +73,7 @@ trap(struct trapframe *tf)
       acquire(&tickslock);
       ticks++;
 
-      procStats(ticks);
+      //procStats(ticks);
 
       wakeup(&ticks);
       release(&tickslock);
