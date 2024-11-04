@@ -8,93 +8,141 @@
 #include "elf.h"
 #include "spinlock.h"
 
-#define MAX_STACK_SIZE 0x400000
-
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
 
-static pte_t *
-walkpgdir(pde_t *pgdir, const void *va, int alloc);
+struct page_stru{
+  char* physical;
+  uint refCount;
+};
 
-void stackSizeHandler(uint esp) {
+static struct{
+  struct spinlock lock;
+  int use_lock;
+  struct page_stru pages[4096];
+  uint pageIndex;
+  uint allocedPages;
+} coreMap;
 
-  cprintf("Stack Handler");
-  uint stackSize = myproc()->stackSize;
 
-  uint newStackSize =(KERNBASE - 4) - esp;
 
-  if (newStackSize > MAX_STACK_SIZE) {
-    cprintf("Segfault\n");
-    kill(myproc()->pid);
-    return;
-  }
+int coreAdd(char* pa)
+{
+  //pa = (char*)V2P(pa);
+  //cprintf("Adding %p\n",pa);
+  if(coreMap.use_lock)
+      acquire(&coreMap.lock);
 
-  uint oldStackBot = (KERNBASE -4) - stackSize;
-  uint newStackBot = esp;
-  if (allocuvm(myproc()->pgdir,  oldStackBot, newStackBot) == 0) {
-    kill(myproc()->pid);
-  }
-  else
+  struct page_stru* newPage = &coreMap.pages[coreMap.pageIndex++ % 4096];
+  int i = 0;
+  while(newPage->physical!=0)
   {
-    myproc()->stackSize += newStackSize;
+    if(i++==4096)
+    {
+      if(coreMap.use_lock)
+        release(&coreMap.lock);
+    }
+    newPage = &coreMap.pages[coreMap.pageIndex++ % 4096];
   }
+  newPage->physical = pa;
+  newPage->refCount = 1;
+  coreMap.allocedPages +=1;
+  //cprintf("There are %d pages in coreMap\n",coreMap.allocedPages);
+
+  if(coreMap.use_lock)
+    release(&coreMap.lock);
+  return 0;
 }
 
 
-void copyOnWriteHandler() {
-
-  cprintf("COW Handler\n");
-  //Get VA of faulting page from CR2 register
-  uint va = rcr2();
-
-  //Get Process PGDIR
-  pde_t *pgdir = myproc()->pgdir;
-  //cprintf("va %p, pa %p\n",va,V2P(va));
-
-  //Get PTE
-  pte_t *pte;
-  if ((pte = walkpgdir(pgdir, (void *)va, 0)) == 0)
-    panic("Page Entry Doesn't Exist");
-
-  if ((*pte & PTE_P) == 0)
-    panic("Page should be present");
-  
-  uint pa = PTE_ADDR(*pte);
-  //cprintf("pa %p\n",pa);
-  uint refs =  getRefs(pa);
-
-  if(refs == 1)
-  {  
-    //our buddies made copies we can write on the one that is officially ours
-    //cprintf("Mine now :)\n");
-    *pte |= PTE_W;
-  }
-  else
-  {
-    cprintf("Dupping\n");
-
-    uint perms = PTE_FLAGS(pte);
-
-    char* newMem;
-    if ((newMem = kalloc()) == 0)
-      panic("Failed allocating mem");
-
-    //Copy contents to new memory
-    memmove(newMem, (char *)P2V(pa), PGSIZE);
-
-    //Redirect PTE to new mem
-    *pte = V2P(newMem) | perms | PTE_P | PTE_U | PTE_W;
-    
-    decrementRefs(pa);
-    //panic("wa la");
-  }
-
-  //Flush Cache
-  lcr3(V2P(pgdir));
+char* coreAlloc()
+{
+  char* page = kalloc();
+  coreAdd((char*)V2P(page));
+  return page;
 }
 
+int coreIncrement(char* va)
+{
+  //cprintf("Looking to inc %p\n",va);
+  if(coreMap.use_lock)
+      acquire(&coreMap.lock);
 
+  struct page_stru* newPage = &coreMap.pages[coreMap.pageIndex++ % 4096];
+  int i = 0;
+  while(newPage->physical!=va)
+  {
+    /*
+    if(newPage->physical!=0)
+    {
+      cprintf("Seeing %p\n",newPage->physical);
+    }*/
+    if(i++==4096)
+    {
+      if(coreMap.use_lock)
+        release(&coreMap.lock);
+      return -1;
+    }
+    newPage = &coreMap.pages[coreMap.pageIndex++ % 4096];
+  }
+  //cprintf("Success\n");
+  newPage->refCount+=1;
+
+  if(coreMap.use_lock)
+    release(&coreMap.lock);
+  return 0;
+}
+
+int coreRemove(char* pa)
+{
+  pa = (char*)V2P(pa);
+  cprintf("Removing %p\n",pa);
+  if(coreMap.use_lock)
+      acquire(&coreMap.lock);
+
+  struct page_stru* newPage = &coreMap.pages[coreMap.pageIndex++ % 4096];
+  int i = 0;
+  //cprintf("Looking for %p\n",pa);
+  while(newPage->physical!=pa)
+  {
+    if(newPage->physical!=0)
+    {
+      //cprintf("Seeing %p\n",newPage->physical);
+    }
+    if(i++==4096)
+    {
+      if(coreMap.use_lock)
+        release(&coreMap.lock);
+      return -1;
+    }
+    newPage = &coreMap.pages[coreMap.pageIndex++ % 4096];
+  }
+
+  newPage->refCount-=1;
+  if(newPage->refCount==0)
+  {
+    coreMap.allocedPages -=1;
+    kfree(P2V(newPage->physical));
+    newPage->physical = 0;
+    cprintf("There are %d pages in coreMap\n",coreMap.allocedPages);
+    if(coreMap.use_lock)
+      release(&coreMap.lock);
+    return 1;
+  }
+
+  if(coreMap.use_lock)
+    release(&coreMap.lock);
+  return 0;
+}
+
+void coreinit(void)
+{
+  initlock(&coreMap.lock, "coreMap");
+  coreMap.use_lock = 1;
+  coreMap.pageIndex = 0;
+  coreMap.allocedPages = 0;
+}
 
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
@@ -114,10 +162,6 @@ seginit(void)
   c->gdt[SEG_UDATA] = SEG(STA_W, 0, 0xffffffff, DPL_USER);
   lgdt(c->gdt, sizeof(c->gdt));
 }
-
-
-
-
 
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
@@ -463,26 +507,41 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
   pde_t *d;
   pte_t *pte;
   uint pa, i, flags;
+  char *mem;
 
   if((d = setupkvm()) == 0)
     return 0;
 
 
+  //data and code copy
+  /*
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
-
-    *pte &= ~PTE_W;
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-
-    //cprintf("Copyvm mappage\n");
-    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
+    if((mem = coreAlloc()) == 0)
       goto bad;
-    incrementRefs(pa);
-
+    memmove(mem, (char*)P2V(pa), PGSIZE);
+    //cprintf("i %p\n",i);
+    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
+      goto bad;
+  }*/
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    *pte &= ~PTE_W;
+    flags = PTE_FLAGS(*pte);
+    coreIncrement((char*) pa);
+    //cprintf("Copyvm mappage\n");
+    cprintf("i is %p\n",i);
+    if(mappages(d, (void*)i, PGSIZE, (uint)pa, flags) < 0)
+      goto bad;
   }
 
   //panic("Wa la");
@@ -496,26 +555,21 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
-
-    *pte &= ~PTE_W;
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-
-    //cprintf("StackTop %p\n",stackTop);
-    if(mappages(d, (void*)stackTop, PGSIZE, pa, flags) < 0)
-
+    if((mem = kalloc()) == 0)
       goto bad;
-    
-    incrementRefs(pa);
+    memmove(mem, (char*)P2V(pa), PGSIZE);
+    cprintf("StackTop %p\n",stackTop);
+    cprintf("Copyvm stack mappage\n");
+    if(mappages(d, (void*)stackTop, PGSIZE, V2P(mem), flags & PTE_W) < 0)
+      goto bad;
   }
 
-  // Flush Cache
-  lcr3(V2P(pgdir));
   return d;
 
 bad:
   freevm(d);
-  lcr3(V2P(pgdir));
   return 0;
 }
 
