@@ -7,8 +7,91 @@
 #include "proc.h"
 #include "elf.h"
 
+#define MAX_STACK_SIZE 0x400000
+
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
+
+static pte_t *
+walkpgdir(pde_t *pgdir, const void *va, int alloc);
+
+void stackSizeHandler(uint esp) {
+
+  cprintf("Stack Handler");
+  uint stackSize = myproc()->stackSize;
+
+  uint newStackSize =(KERNBASE - 4) - esp;
+
+  if (newStackSize > MAX_STACK_SIZE) {
+    cprintf("Segfault\n");
+    kill(myproc()->pid);
+    return;
+  }
+
+  uint oldStackBot = (KERNBASE -4) - stackSize;
+  uint newStackBot = esp;
+  if (allocuvm(myproc()->pgdir,  oldStackBot, newStackBot) == 0) {
+    kill(myproc()->pid);
+  }
+  else
+  {
+    myproc()->stackSize += newStackSize;
+  }
+}
+
+
+void copyOnWriteHandler() {
+
+  cprintf("COW Handler\n");
+  //Get VA of faulting page from CR2 register
+  uint va = rcr2();
+
+  //Get Process PGDIR
+  pde_t *pgdir = myproc()->pgdir;
+  //cprintf("va %p, pa %p\n",va,V2P(va));
+
+  //Get PTE
+  pte_t *pte;
+  if ((pte = walkpgdir(pgdir, (void *)va, 0)) == 0)
+    panic("Page Entry Doesn't Exist");
+
+  if ((*pte & PTE_P) == 0)
+    panic("Page should be present");
+  
+  uint pa = PTE_ADDR(*pte);
+  //cprintf("pa %p\n",pa);
+  uint refs =  getRefs(pa);
+
+  if(refs == 1)
+  {  
+    //our buddies made copies we can write on the one that is officially ours
+    //cprintf("Mine now :)\n");
+    *pte |= PTE_W;
+  }
+  else
+  {
+    cprintf("Dupping\n");
+
+    uint perms = PTE_FLAGS(pte);
+
+    char* newMem;
+    if ((newMem = kalloc()) == 0)
+      panic("Failed allocating mem");
+
+    //Copy contents to new memory
+    memmove(newMem, (char *)P2V(pa), PGSIZE);
+
+    //Redirect PTE to new mem
+    *pte = V2P(newMem) | perms | PTE_P | PTE_U | PTE_W;
+    
+    decrementRefs(pa);
+    //panic("wa la");
+  }
+
+  //Flush Cache
+  lcr3(V2P(pgdir));
+}
+
 
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
@@ -56,18 +139,6 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
     *pde = V2P(pgtab) | PTE_P | PTE_W | PTE_U;
   }
   return &pgtab[PTX(va)];
-}
-
-
-uint* walkTrap(uint* pgdir,char* va,int alloc)
-{
-  return walkpgdir(pgdir,va,alloc);
-}
-
-void switchPtePa(uint* pte, uint pa)
-{
-  uint perm = PTE_ADDR(pte) & PTE_W;
-  *pte = pa | perm |  PTE_P;
 }
 
 // Create PTEs for virtual addresses starting at va that refer to
@@ -339,30 +410,21 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
 
   if((d = setupkvm()) == 0)
     return 0;
- 
- 
-
-
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
+
     *pte &= ~PTE_W;
+    pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
     //cprintf("Copyvm mappage\n");
-    if(mappages(d, (void*)i, PGSIZE, (uint)pa, flags) < 0)
+    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
       goto bad;
     incrementRefs(pa);
   }
-
-
-
-
-
-
 
   for(uint stackTop = KERNBASE-stackSize;stackTop<KERNBASE-4  ;stackTop+=PGSIZE)
   {
@@ -380,10 +442,13 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
       goto bad;
   }
 
+  // Flush Cache
+  lcr3(V2P(pgdir));
   return d;
 
 bad:
   freevm(d);
+  lcr3(V2P(pgdir));
   return 0;
 }
 
