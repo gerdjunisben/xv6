@@ -74,6 +74,9 @@ void            decrementRefs(uint);
 uint            getRefs(uint);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
+uint            getFreePages(void);
+uint            getTotalPages(void);
+uint            getUsedPages(void);
 
 // kbd.c
 void            kbdintr(void);
@@ -205,6 +208,7 @@ void            clearpteu(pde_t *pgdir, char *uva);
 //HW4
 void            stackSizeHandler(uint esp);
 void            copyOnWriteHandler();
+uint            countProcPages(pde_t*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

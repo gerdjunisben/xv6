@@ -141,6 +141,20 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
   return &pgtab[PTX(va)];
 }
 
+uint countProcPages(pde_t* pgdir)
+{
+  uint count = 0;
+  for(int i = 0;i < (PHYSTOP >> PGSHIFT); i+=1)
+  {
+    pte_t* pte = walkpgdir(pgdir, (void *)(i*PGSIZE),0);
+    if(pte!=0 )
+      count++;
+  }
+  cprintf("Count: %d\n",count);
+  //panic("...");
+  return count;
+}
+
 // Create PTEs for virtual addresses starting at va that refer to
 // physical addresses starting at pa. va and size might not
 // be page-aligned.

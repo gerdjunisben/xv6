@@ -59,18 +59,14 @@ struct proc {
   unsigned long run_time;      // Measure time in RUNNING state
   unsigned long wait_time;     // Measure time in RUNNABLE state
   unsigned long sleep_time;    // Measure time in SLEEPING state
-
   float cpuUtil;
   float waitPercent;
   float avgLatency;
   uint wait;
   uint lastHundredRun;
   uint lastHundredWait;
-  
   uint isLatency;
   uint isOldLatency;
-  
-
   struct{
     int ticks[100];
     int latency[100];

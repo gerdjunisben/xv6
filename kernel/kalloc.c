@@ -21,7 +21,9 @@ struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
-  uint refCounts[PHYSTOP/PGSIZE];  ///PHYSTOP is the end of physical memory divided by PGSIZE is 1 for each page
+  uint refCounts[(PHYSTOP>>PGSHIFT)];  ///PHYSTOP is the end of physical memory divided by PGSIZE is 1 for each page
+  uint freePages;
+  uint totalPages;
 } kmem;
 
 // Initialization happens in two phases.
@@ -34,9 +36,13 @@ kinit1(void *vstart, void *vend)
 {
   initlock(&kmem.lock, "kmem");
   kmem.use_lock = 0;
-  uint refs = PHYSTOP/PGSIZE;
+  uint refs = (PHYSTOP>>PGSHIFT);
   for(int i = 0;i<refs;i++)
+  {
     kmem.refCounts[i] = 0;
+    kmem.totalPages+=1;
+  }
+  kmem.freePages = 0;
   freerange(vstart, vend);
 }
 
@@ -68,7 +74,7 @@ kfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  int ref = V2P(v)/PGSIZE;
+  int ref = V2P(v)>>PGSHIFT;
   if(kmem.use_lock)
       acquire(&kmem.lock);
 
@@ -77,7 +83,7 @@ kfree(char *v)
   {
     // Fill with junk to catch dangling refs.
     memset(v, 1, PGSIZE);
-
+    kmem.freePages++;
   
     r = (struct run*)v;
     r->next = kmem.freelist;
@@ -101,8 +107,9 @@ kalloc(void)
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
-  int ref = V2P(r)/PGSIZE;
+  int ref = V2P(r)>>PGSHIFT;
   kmem.refCounts[ref]+=1;
+  kmem.freePages--;
   if(kmem.use_lock)
     release(&kmem.lock);
   return (char*)r;
@@ -115,7 +122,7 @@ void incrementRefs(uint pa)
   //if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     //panic("incrementRefs");
 
-  int ref = pa/PGSIZE;
+  int ref = pa>>PGSHIFT;
   cprintf("Incrementing %p\n",pa);
   if(kmem.use_lock)
       acquire(&kmem.lock);
@@ -131,7 +138,7 @@ void decrementRefs(uint pa)
   //if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     //panic("decrementRefs");
 
-  int ref = pa/PGSIZE;
+  int ref = pa>>PGSHIFT;
   if(kmem.use_lock)
       acquire(&kmem.lock);
   kmem.refCounts[ref]-=1;
@@ -146,7 +153,7 @@ uint getRefs(uint pa)
     //panic("getRefs");
 
   uint count = 0;
-  int ref = pa/PGSIZE;
+  int ref = pa>>PGSHIFT;
   if(kmem.use_lock)
     acquire(&kmem.lock);
   count = kmem.refCounts[ref];
@@ -157,3 +164,17 @@ uint getRefs(uint pa)
 }
 
 
+uint getFreePages()
+{
+  return kmem.freePages;
+}
+
+uint getTotalPages()
+{
+  return kmem.totalPages;
+}
+
+uint getUsedPages()
+{
+  return kmem.totalPages - kmem.freePages;
+}
