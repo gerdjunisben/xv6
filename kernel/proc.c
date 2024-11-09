@@ -1009,19 +1009,19 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-  uint pages = 0;
 
   cprintf("\nMemory pages: %d, used: %d, free: %d\n", getTotalPages(), getUsedPages(), getFreePages());
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
-    pages = countProcPages(p->pgdir);
+    uint counts[2];
+    countProcPages(p->pgdir,counts);
     
     if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s [%d] %s", p->pid, state,pages, p->name);
+    cprintf("%d %s [%d/%d] %s", p->pid, state,counts[0],counts[1], p->name);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)

@@ -36,13 +36,13 @@ kinit1(void *vstart, void *vend)
 {
   initlock(&kmem.lock, "kmem");
   kmem.use_lock = 0;
-  uint refs = (PHYSTOP>>PGSHIFT);
-  for(int i = 0;i<refs;i++)
+  kmem.totalPages = PHYSTOP>>PGSHIFT;
+  kmem.freePages = 0;
+  for(int i = 0;i<kmem.totalPages;i++)
   {
     kmem.refCounts[i] = 0;
-    kmem.totalPages+=1;
   }
-  kmem.freePages = 0;
+  
   freerange(vstart, vend);
 }
 

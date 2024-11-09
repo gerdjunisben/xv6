@@ -141,18 +141,23 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
   return &pgtab[PTX(va)];
 }
 
-uint countProcPages(pde_t* pgdir)
+void countProcPages(pde_t* pgdir,uint* counts)
 {
-  uint count = 0;
-  for(int i = 0;i < (PHYSTOP >> PGSHIFT); i+=1)
+  counts[0] = 0;
+  counts[1] = 0;
+  for(int i = 0;i < (KERNBASE >> PGSHIFT); i+=1)
   {
     pte_t* pte = walkpgdir(pgdir, (void *)(i*PGSIZE),0);
-    if(pte!=0 )
-      count++;
+    if(pte!=0 && (*pte & PTE_P) && (*pte & PTE_U))
+    {
+      counts[0]++;
+      if(!(*pte & PTE_W))
+      {
+        counts[1]++;
+      }
+    }
   }
-  cprintf("Count: %d\n",count);
   //panic("...");
-  return count;
 }
 
 // Create PTEs for virtual addresses starting at va that refer to

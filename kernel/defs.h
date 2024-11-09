@@ -208,7 +208,7 @@ void            clearpteu(pde_t *pgdir, char *uva);
 //HW4
 void            stackSizeHandler(uint esp);
 void            copyOnWriteHandler();
-uint            countProcPages(pde_t*);
+void            countProcPages(pde_t*,uint*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
