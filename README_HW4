@@ -1,0 +1,22 @@
+Coremap:
+The idea of the core map is a map of each physical page to some properties. Initially we tried to implement this in vm because we thought it 
+needed to be dynamically grown, this stunk and we figured out how to make a "map" for each page so after a day or two we made a test branch and remade 
+it inside kalloc which worked much better. Though note the two did basically the same thing just vms was a lot messier and we didn't finish it because of that. 
+How our map works is it is PHYSTOP>>PGSHIFT indexes which is equal to PHYSTOP/PGSIZE indexes and when our interface methods like incrementRefs,decrementRefs or getRefs get a 
+physical address they shift right by PGSHIFT to get it's map index. The map itself only stores an unsigned int for the ref count since that's all we needed. So through 
+all of that getting the refcount on a physical page a virtual page is mapped to is as fast as getting the physical address and shifting PGSHIFT bits.
+
+
+
+
+Print out:
+For the total pages we keep track of the total pages when we init kalloc and we keep track of the free pages when a page is alloced or freed and with 
+that we can get the kalloced pages.
+
+
+
+How to test:
+You can run page test which forks a bunch of procs that run for a tick then sleep for a tick and forks a child that just keeps calling the stack 
+extension handler from the previous assignment. You will notice that they all share a page for code and don't share one (or many if you're looking 
+at the stack extension child) page(s). If you want to see more sharing between more procs you can do "proc_test # 1000 2" where # is the amount of child 
+procs you want and the rest sets them to a tick of work then a tick of rest for 1000 iterations.

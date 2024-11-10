@@ -145,9 +145,12 @@ void countProcPages(pde_t* pgdir,uint* counts)
 {
   counts[0] = 0;
   counts[1] = 0;
+  //uint kcounts[2] ={0,0};
+  //cprintf("top %d\n",(KERNBASE >> PGSHIFT));
   for(int i = 0;i < (KERNBASE >> PGSHIFT); i+=1)
   {
     pte_t* pte = walkpgdir(pgdir, (void *)(i*PGSIZE),0);
+
     if(pte!=0 && (*pte & PTE_P) && (*pte & PTE_U))
     {
       counts[0]++;
@@ -156,7 +159,23 @@ void countProcPages(pde_t* pgdir,uint* counts)
         counts[1]++;
       }
     }
+    
   }
+  /*
+  cprintf("Bottom of kern %p, top of kern %p\n",(KERNBASE),((0x8FE000000)));
+  for(int i = (KERNBASE >> PGSHIFT);i < ((0x8FE000000)>> PGSHIFT); i+=1)
+  {
+    pte_t* pte2 = walkpgdir(kpgdir, (void *)(i*PGSIZE),0);
+    if(pte2!=0 && (*pte2 & PTE_P) && (*pte2 & PTE_U))
+    {
+      kcounts[0]++;
+      if(!(*pte2 & PTE_W))
+      {
+        kcounts[1]++;
+      }
+    }
+  }
+  cprintf("total %d, shared %d\n",kcounts[0],kcounts[1]);*/
   //panic("...");
 }
 
