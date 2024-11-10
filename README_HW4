@@ -6,7 +6,27 @@ How our map works is it is PHYSTOP>>PGSHIFT indexes which is equal to PHYSTOP/PG
 physical address they shift right by PGSHIFT to get it's map index. The map itself only stores an unsigned int for the ref count since that's all we needed. So through 
 all of that getting the refcount on a physical page a virtual page is mapped to is as fast as getting the physical address and shifting PGSHIFT bits.
 
+COW:
+The first thing to figure out was how to implement correctly READ_ONLY pages when copyuvm() is called. This required some understanding of what is the step by step 
+process copyuvm() follows and identifying where exactly is that the pages contents are being copied to another memory address. After identifying these, we noticed 
+that we could just change the permissions of each pte entry to READ_ONLY by removing the write permission, and then have mappages() to create a page in the new process' 
+pgdir, but pointing to the same physical address as the parent process' page. In other words, both parent and child have READ_ONLY entries in their page directories, 
+and page entries point to the same physical address.
 
+The next thing to do was to differentiate between different faults in the handler. That is, we needed a way to identify when a pagefault occurs to request more stack 
+space, and when it occurs for not having writing permissions. I noticed that trapframe contains an error code, which is an integer that identifies the error causing 
+the fault. After some testing, I identified that an error code of 7 corresponded to writing permission issue. Therefore, I decided to create one function for the 
+stackGrowHandler() and another for the COW implementation, and adding a conditional to decide which handler to use based on the error code.
+
+Further, I remembered the professor mentioning something about registers CR2 and CR3. Turns out that we have an rcr2() function in xv6, which will return the value at 
+that register. At the moment of pagefault, this register will have the virtual address that caused the fault, so rcr2() will return the faulting virtual address.
+
+Now that we have the faulting virtual address, we can follow same process and error checking copyuvm() does to get the page table entry that corresponds to that virtual 
+address inside myproc()->pgdir. Using that page table entry, if valid, we can get the physical address it points to, so now we can check for its references. If it has 
+only one reference, we can just change the permissions of that page table entry to allow write. Else, we need to allocate a new physical memory, copy the contents from 
+the original physical address to the new memory, and redirect the pte pointer to the physical address of the new memory, adding PTE_P and PTE_U flags, and allowing 
+write with the PTE_W flag. Finally, we have to decrease the references to the original physical address since this page table entry is not pointing to it anymore, and 
+we flush the cache by calling lcr3().
 
 
 Print out:
