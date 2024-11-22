@@ -17,13 +17,13 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc);
 
 void stackSizeHandler(uint esp) {
 
-  cprintf("Stack Handler");
+  //cprintf("Stack Handler");
   uint stackSize = myproc()->stackSize;
 
   uint newStackSize =(KERNBASE - 4) - esp;
 
   if (newStackSize > MAX_STACK_SIZE) {
-    cprintf("Segfault\n");
+    //cprintf("Segfault\n");
     kill(myproc()->pid);
     return;
   }
@@ -42,7 +42,7 @@ void stackSizeHandler(uint esp) {
 
 void copyOnWriteHandler() {
 
-  cprintf("COW Handler\n");
+  //cprintf("COW Handler\n");
   //Get VA of faulting page from CR2 register
   uint va = rcr2();
 
@@ -70,7 +70,7 @@ void copyOnWriteHandler() {
   }
   else
   {
-    cprintf("Dupping\n");
+    //cprintf("Dupping\n");
 
     uint perms = PTE_FLAGS(pte);
 

@@ -12,6 +12,7 @@
 #include "sleeplock.h"
 #include "fs.h"
 #include "buf.h"
+#include "file.h"
 
 #define SECTOR_SIZE   512
 #define IDE_BSY       0x80
@@ -29,22 +30,68 @@
 // You must hold idelock while manipulating queue.
 
 static struct spinlock idelock;
+static struct spinlock sidelock;
 static struct buf *idequeue;
 
+static int havedisk0;
 static int havedisk1;
+static int havedisk2;
+static int havedisk3;
 static void idestart(struct buf*);
 
 // Wait for IDE disk to become ready.
 static int
-idewait(int checkerr)
+idewait(int checkerr,uint isSecondary)
 {
   int r;
+  uint byte =0x1f7;
+  if(isSecondary)
+  {
+    byte = 0x177;
+  }
 
-  while(((r = inb(0x1f7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY)
+
+  while(((r = inb(byte)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY)
     ;
   if(checkerr && (r & (IDE_DF|IDE_ERR)) != 0)
     return -1;
   return 0;
+}
+
+int
+ideread(struct inode *ip,  char *dst, int n){
+  iunlock(ip);
+  int comNumber = ip->minor;
+  struct spinlock* lock;
+  if(comNumber == 0 || comNumber == 1)
+  {
+    lock = &(idelock);
+  }
+  else if(comNumber == 2 || comNumber == 3)
+  {
+    lock = &(sidelock);
+  }
+  else
+  {
+    return -1;
+  }
+
+  acquire(&(*lock));
+
+
+
+  release(&(*lock));
+  ilock(ip);
+}
+
+int
+idewrite(struct inode *ip, char *buf, int n)
+{
+  iunlock(ip);
+
+
+
+  ilock(ip);
 }
 
 void
@@ -53,8 +100,10 @@ ideinit(void)
   int i;
 
   initlock(&idelock, "ide");
+  initlock(&sidelock, "side");
   ioapicenable(IRQ_IDE, ncpu - 1);
-  idewait(0);
+  ioapicenable(IRQ_SIDE, ncpu-1);
+  idewait(0,0);
 
   // Check if disk 1 is present
   outb(0x1f6, 0xe0 | (1<<4));
@@ -67,12 +116,75 @@ ideinit(void)
 
   // Switch back to disk 0.
   outb(0x1f6, 0xe0 | (0<<4));
+  for(i=0; i<1000; i++){
+    if(inb(0x1f7) != 0){
+      havedisk0 = 1;
+      break;
+    }
+  }
+
+
+  idewait(0,1);
+
+
+  //check if disk 3 is present
+  outb(0x176, 0xe0 | (1<<4));
+  for(i=0; i<1000; i++){
+    if(inb(0x177) != 0){
+      havedisk3 = 1;
+      break;
+    }
+  }
+  //switch back to disk 2 and make sure it's present
+  outb(0x176, 0xe0 | (0<<4));
+  for (i = 0; i < 1000; i++) {
+  if (inb(0x177) != 0) {
+    havedisk2 = 1; 
+    break;
+  }
+
+
+  devsw[IDE].write = idewrite;
+  devsw[IDE].read = ideread;
+  }
 }
 
 // Start the request for b.  Caller must hold idelock.
 static void
 idestart(struct buf *b)
 {
+  uint isSecondary = 0;
+  uint base1 = 0x1f0;
+  uint base2 = 0x3f6;
+  if(b->dev == 2 || b->dev == 3)
+  {
+    base1 = 0x170;
+    base2 = 0x376;
+    isSecondary = 1;
+    if(b->dev == 2)
+    {
+      outb(base1 + 6, 0xe0 | (0 << 4));
+    }
+    else
+    {
+      outb(base1 + 6, 0xe0 | (1 << 4));
+    }
+  }
+  else if(b->dev == 0 || b->dev ==1)
+  {
+    if(b->dev == 0)
+    {
+      outb(base1 + 6, 0xe0 | (0 << 4));
+    }
+    else
+    {
+      outb(base1 + 6, 0xe0 | (1 << 4));
+    }
+  }
+  else
+  {
+    panic("Invalid disk");
+  }
   if(b == 0)
     panic("idestart");
   if(b->blockno >= FSSIZE)
@@ -84,39 +196,52 @@ idestart(struct buf *b)
 
   if (sector_per_block > 7) panic("idestart");
 
-  idewait(0);
-  outb(0x3f6, 0);  // generate interrupt
-  outb(0x1f2, sector_per_block);  // number of sectors
-  outb(0x1f3, sector & 0xff);
-  outb(0x1f4, (sector >> 8) & 0xff);
-  outb(0x1f5, (sector >> 16) & 0xff);
-  outb(0x1f6, 0xe0 | ((b->dev&1)<<4) | ((sector>>24)&0x0f));
+  idewait(0,isSecondary);
+  outb(base2, 0);  // generate interrupt
+  outb(base1 + 2, sector_per_block);  // number of sectors
+  outb(base1 + 3, sector & 0xff);
+  outb(base1 + 4, (sector >> 8) & 0xff);
+  outb(base1 + 5, (sector >> 16) & 0xff);
+  outb(base1 + 6, 0xe0 | ((b->dev&1)<<4) | ((sector>>24)&0x0f));
   if(b->flags & B_DIRTY){
-    outb(0x1f7, write_cmd);
-    outsl(0x1f0, b->data, BSIZE/4);
+    outb(base1 + 7, write_cmd);
+    outsl(base1, b->data, BSIZE/4);
   } else {
-    outb(0x1f7, read_cmd);
+    outb(base1 + 7, read_cmd);
   }
 }
 
 // Interrupt handler.
 void
-ideintr(void)
+ideintr()
 {
+  uint isSecondary = 0;
+  uint base1 = 0x1f0;
+  struct spinlock* curLock = &idelock;
   struct buf *b;
 
   // First queued buffer is the active request.
-  acquire(&idelock);
+  acquire(curLock);
 
   if((b = idequeue) == 0){
-    release(&idelock);
+    release(curLock);
     return;
+  }
+  cprintf("The dev num %d\n",b->dev);
+
+  if(b->dev == 2 || b->dev == 3)
+  {
+    release(curLock);
+    isSecondary = 1;
+    base1 = 0x170;
+    curLock = &sidelock;
+    acquire(curLock);
   }
   idequeue = b->qnext;
 
   // Read data if needed.
-  if(!(b->flags & B_DIRTY) && idewait(1) >= 0)
-    insl(0x1f0, b->data, BSIZE/4);
+  if(!(b->flags & B_DIRTY) && idewait(1,isSecondary) >= 0)
+    insl(base1, b->data, BSIZE/4);
 
   // Wake process waiting for this buf.
   b->flags |= B_VALID;
@@ -127,7 +252,7 @@ ideintr(void)
   if(idequeue != 0)
     idestart(idequeue);
 
-  release(&idelock);
+  release(curLock);
 }
 
 //PAGEBREAK!
@@ -137,16 +262,26 @@ ideintr(void)
 void
 iderw(struct buf *b)
 {
-  struct buf **pp;
+  struct spinlock* curlock = &idelock;
+  if(b->dev == 2 || b->dev == 3)
+  {
+    curlock = &sidelock;
+  }
 
+  struct buf **pp;
+  
   if(!holdingsleep(&b->lock))
     panic("iderw: buf not locked");
   if((b->flags & (B_VALID|B_DIRTY)) == B_VALID)
     panic("iderw: nothing to do");
-  if(b->dev != 0 && !havedisk1)
+  if(b->dev ==1 && !havedisk1)
     panic("iderw: ide disk 1 not present");
+  if(b->dev ==2 && !havedisk2)
+    panic("iderw: ide disk 2 not present");
+  if(b->dev ==3 && !havedisk3)
+    panic("iderw: ide disk 3 not present");
 
-  acquire(&idelock);  //DOC:acquire-lock
+  acquire(curlock);  //DOC:acquire-lock
 
   // Append b to idequeue.
   b->qnext = 0;
@@ -164,5 +299,7 @@ iderw(struct buf *b)
   }
 
 
-  release(&idelock);
+  release(curlock);
 }
+
+

@@ -21,6 +21,7 @@ static uchar *memdisk;
 void
 ideinit(void)
 {
+  cprintf("their ideinit\n");
   memdisk = _binary_fs_img_start;
   disksize = (uint)_binary_fs_img_size/BSIZE;
 }
