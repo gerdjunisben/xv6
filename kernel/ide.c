@@ -25,12 +25,15 @@
 #define IDE_CMD_RDMUL 0xc4
 #define IDE_CMD_WRMUL 0xc5
 
+
+
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
 // idequeue points to the buf now being read/written to the disk.
 // idequeue->qnext points to the next buf to be processed.
 // You must hold idelock while manipulating queue.
 
 static struct spinlock idelock;
-static struct spinlock sidelock;
 static struct buf *idequeue;
 
 static int havedisk0;
@@ -59,39 +62,76 @@ idewait(int checkerr,uint isSecondary)
 }
 
 int
-ideread(struct inode *ip,  char *dst, int n){
+ideread(struct inode *ip,  char *dst, int n, uint offset){
+  cprintf("IDEREAD\n");
   iunlock(ip);
-  int comNumber = ip->minor;
-  struct spinlock* lock;
-  if(comNumber == 0 || comNumber == 1)
+
+
+  
+  uint m =0;
+  struct buf *bp;
+
+  if(offset > ip->size || offset + n < offset)
   {
-    lock = &(idelock);
-  }
-  else if(comNumber == 2 || comNumber == 3)
-  {
-    lock = &(sidelock);
-  }
-  else
-  {
+
+    ilock(ip);
     return -1;
   }
+  if(offset + n > ip->size)
+    n = ip->size - offset;
+  for(uint tot=0; tot<n; tot+=m, offset+=m, dst+=m){
+    bp = bread(ip->dev, bmap(ip, offset/BSIZE));
+    m = min(n - tot, BSIZE - offset%BSIZE);
+    memmove(dst, bp->data + offset%BSIZE, m);
+    brelse(bp);
+  }
 
-  acquire(&(*lock));
 
-
-
-  release(&(*lock));
   ilock(ip);
+   cprintf("COMPLETED IDEREAD\n");
+  return n;
 }
 
 int
-idewrite(struct inode *ip, char *buf, int n)
+idewrite(struct inode *ip, char *buf, int n,uint offset)
 {
+  cprintf("IDEWRITE\n");
   iunlock(ip);
 
+  uint m =0;
+  struct buf *bp;
 
+  if(offset > ip->size || offset + n < offset)
+  {
+    cprintf("ide write removing lock\n");
+
+    ilock(ip);
+    return -1;
+  }
+  if(offset + n > MAXFILE*BSIZE)
+  {
+    cprintf("ide write removing lock\n");
+
+    ilock(ip);
+    return -1;
+  }
+
+  for(uint tot=0; tot<n; tot+=m, offset+=m, buf+=m){
+    bp = bread(ip->dev, bmap(ip, offset/BSIZE));
+    m = min(n - tot, BSIZE - offset%BSIZE);
+    memmove(bp->data + offset%BSIZE, buf, m);
+    log_write(bp);
+    brelse(bp);
+  }
+
+  if(n > 0 && offset > ip->size){
+    ip->size = offset;
+    iupdate(ip);
+  }
 
   ilock(ip);
+  cprintf("COMPLETED IDEWRITE\n");
+  return n;
 }
 
 void
@@ -100,7 +140,6 @@ ideinit(void)
   int i;
 
   initlock(&idelock, "ide");
-  initlock(&sidelock, "side");
   ioapicenable(IRQ_IDE, ncpu - 1);
   ioapicenable(IRQ_SIDE, ncpu-1);
   idewait(0,0);
@@ -138,15 +177,19 @@ ideinit(void)
   //switch back to disk 2 and make sure it's present
   outb(0x176, 0xe0 | (0<<4));
   for (i = 0; i < 1000; i++) {
-  if (inb(0x177) != 0) {
-    havedisk2 = 1; 
-    break;
+    if (inb(0x177) != 0) {
+      havedisk2 = 1; 
+      break;
+    }
+
   }
+
+
+
 
 
   devsw[IDE].write = idewrite;
   devsw[IDE].read = ideread;
-  }
 }
 
 // Start the request for b.  Caller must hold idelock.
@@ -219,23 +262,21 @@ ideintr()
   uint base1 = 0x1f0;
   struct spinlock* curLock = &idelock;
   struct buf *b;
-
+  //cprintf("ide intr getting lock\n");
   // First queued buffer is the active request.
   acquire(curLock);
 
   if((b = idequeue) == 0){
+    //cprintf("ide inter removing lock\n");
     release(curLock);
     return;
   }
-  cprintf("The dev num %d\n",b->dev);
+  //cprintf("The dev num %d\n",b->dev);
 
   if(b->dev == 2 || b->dev == 3)
   {
-    release(curLock);
     isSecondary = 1;
     base1 = 0x170;
-    curLock = &sidelock;
-    acquire(curLock);
   }
   idequeue = b->qnext;
 
@@ -251,7 +292,7 @@ ideintr()
   // Start disk on next buf in queue.
   if(idequeue != 0)
     idestart(idequeue);
-
+  //cprintf("ide intr removing lock\n");
   release(curLock);
 }
 
@@ -263,10 +304,7 @@ void
 iderw(struct buf *b)
 {
   struct spinlock* curlock = &idelock;
-  if(b->dev == 2 || b->dev == 3)
-  {
-    curlock = &sidelock;
-  }
+
 
   struct buf **pp;
   
@@ -280,7 +318,7 @@ iderw(struct buf *b)
     panic("iderw: ide disk 2 not present");
   if(b->dev ==3 && !havedisk3)
     panic("iderw: ide disk 3 not present");
-
+  //cprintf("iderw getting lock\n");
   acquire(curlock);  //DOC:acquire-lock
 
   // Append b to idequeue.
@@ -298,7 +336,7 @@ iderw(struct buf *b)
     sleep(b, &idelock);
   }
 
-
+  //cprintf("iderw removing lock\n");
   release(curlock);
 }
 

@@ -242,7 +242,7 @@ void consoleUnlock()
 
 
 int
-consoleread(struct inode *ip, char *dst, int n)
+consoleread(struct inode *ip, char *dst, int n,uint offset)
 {
   uint target;
   int c;
@@ -280,7 +280,7 @@ consoleread(struct inode *ip, char *dst, int n)
 }
 
 int
-consolewrite(struct inode *ip, char *buf, int n)
+consolewrite(struct inode *ip, char *buf, int n,uint offset)
 {
   int i;
 

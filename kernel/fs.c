@@ -370,7 +370,7 @@ iunlockput(struct inode *ip)
 
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
-static uint
+uint
 bmap(struct inode *ip, uint bn)
 {
   uint addr, *a;
@@ -459,7 +459,7 @@ readi(struct inode *ip, char *dst, uint off, uint n)
   if(ip->type == T_DEV){
     if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].read)
       return -1;
-    return devsw[ip->major].read(ip, dst, n);
+    return devsw[ip->major].read(ip, dst, n,off);
   }
 
   if(off > ip->size || off + n < off)
@@ -480,7 +480,7 @@ readi(struct inode *ip, char *dst, uint off, uint n)
 // Write data to inode.
 // Caller must hold ip->lock.
 int
-writei(struct inode *ip, char *src, uint off, uint n)
+writei(struct inode *ip, char *src, uint off,  uint n)
 {
   uint tot, m;
   struct buf *bp;
@@ -488,7 +488,7 @@ writei(struct inode *ip, char *src, uint off, uint n)
   if(ip->type == T_DEV){
     if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].write)
       return -1;
-    return devsw[ip->major].write(ip, src, n);
+    return devsw[ip->major].write(ip, src, n,off);
   }
 
   if(off > ip->size || off + n < off)

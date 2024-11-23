@@ -26,6 +26,7 @@ UPROGS=\
 	_stack_test\
 	_proc_test\
 	_page_test\
+	_disk_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

@@ -14,8 +14,8 @@ main(void)
   int pid, wpid;
   int pids[3];
 
-
-  for(int i = 0;i<deviceCount;i++)
+  uint i;
+  for( i = 0;i<2;i++)
   {
     int fd = open(devices[i], O_RDWR);
     if(fd < 0){
@@ -51,6 +51,15 @@ main(void)
       printf(1, "init: exec sh failed\n");
       exit();
     }
+  }
+
+  for(;i<deviceCount;i++)
+  {
+    int fd = open(devices[i], O_RDWR);
+    if(fd < 0){
+      mknod(devices[i], majorNums[i], minorNums[i]);
+    }
+
   }
 
   for(;;){

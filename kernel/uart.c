@@ -150,7 +150,7 @@ uartintr(int comNumber)
 }
 
 int
-uartread(struct inode *ip, char *dst, int n)
+uartread(struct inode *ip, char *dst, int n, uint off)
 {
   uint target;
   int c;
@@ -208,7 +208,7 @@ uartread(struct inode *ip, char *dst, int n)
 }
 
 int
-uartwrite(struct inode *ip, char *buf, int n)
+uartwrite(struct inode *ip, char *buf, int n, uint off)
 {
   int i;
 
