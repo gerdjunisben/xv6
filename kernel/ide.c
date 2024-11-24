@@ -63,29 +63,33 @@ idewait(int checkerr,uint isSecondary)
 
 int
 ideread(struct inode *ip,  char *dst, int n, uint offset){
-  cprintf("IDEREAD\n");
+  cprintf("IDEREAD %d bytes, %d offset, %d disk\n",n,offset,ip->size);
   iunlock(ip);
-
-
   
   uint m =0;
   struct buf *bp;
 
+/*
   if(offset > ip->size || offset + n < offset)
   {
-
+    cprintf("Returning -1\n");
     ilock(ip);
     return -1;
-  }
+  }*/
+  /*
   if(offset + n > ip->size)
+  {
     n = ip->size - offset;
+  }*/
+  begin_op();
   for(uint tot=0; tot<n; tot+=m, offset+=m, dst+=m){
-    bp = bread(ip->dev, bmap(ip, offset/BSIZE));
+    cprintf("block number %d\n",offset/BSIZE);
+    bp = bread(ip->minor, offset/BSIZE);
     m = min(n - tot, BSIZE - offset%BSIZE);
     memmove(dst, bp->data + offset%BSIZE, m);
     brelse(bp);
   }
-
+  end_op();
 
   ilock(ip);
    cprintf("COMPLETED IDEREAD\n");
@@ -95,34 +99,36 @@ ideread(struct inode *ip,  char *dst, int n, uint offset){
 int
 idewrite(struct inode *ip, char *buf, int n,uint offset)
 {
-  cprintf("IDEWRITE\n");
+  cprintf("IDEWRITE %d bytes, %d offset, %d disk\n",n,offset,ip->size);
   iunlock(ip);
 
   uint m =0;
   struct buf *bp;
-
+  /*
   if(offset > ip->size || offset + n < offset)
   {
-    cprintf("ide write removing lock\n");
 
     ilock(ip);
     return -1;
-  }
+  }*/
   if(offset + n > MAXFILE*BSIZE)
   {
-    cprintf("ide write removing lock\n");
 
     ilock(ip);
     return -1;
   }
-
+  begin_op();
   for(uint tot=0; tot<n; tot+=m, offset+=m, buf+=m){
-    bp = bread(ip->dev, bmap(ip, offset/BSIZE));
+    
+    cprintf("Sector %d\n",diskbmap(ip, offset/BSIZE));
+    bp = bread(ip->minor, diskbmap(ip, offset/BSIZE));
+    
     m = min(n - tot, BSIZE - offset%BSIZE);
     memmove(bp->data + offset%BSIZE, buf, m);
     log_write(bp);
     brelse(bp);
   }
+  end_op();
 
   if(n > 0 && offset > ip->size){
     ip->size = offset;
@@ -183,8 +189,6 @@ ideinit(void)
     }
 
   }
-
-
 
 
 
@@ -258,6 +262,7 @@ idestart(struct buf *b)
 void
 ideintr()
 {
+
   uint isSecondary = 0;
   uint base1 = 0x1f0;
   struct spinlock* curLock = &idelock;
@@ -266,17 +271,29 @@ ideintr()
   // First queued buffer is the active request.
   acquire(curLock);
 
+
+
   if((b = idequeue) == 0){
     //cprintf("ide inter removing lock\n");
     release(curLock);
     return;
   }
-  //cprintf("The dev num %d\n",b->dev);
-
   if(b->dev == 2 || b->dev == 3)
   {
     isSecondary = 1;
     base1 = 0x170;
+  }
+  if(b->dev == 1 || b->dev == 3)
+  {
+    outb(base1 + 6, 0xe0 | (1 << 4));
+  }
+  else if(b->dev == 0 || b->dev == 2)
+  {
+    outb(base1 + 6, 0xe0 | (0 << 4));
+  }
+  else
+  {
+    panic("Unkown drive");
   }
   idequeue = b->qnext;
 
@@ -304,7 +321,7 @@ void
 iderw(struct buf *b)
 {
   struct spinlock* curlock = &idelock;
-
+  //cprintf("b dev %d\n",b->dev);
 
   struct buf **pp;
   
@@ -326,7 +343,6 @@ iderw(struct buf *b)
   for(pp=&idequeue; *pp; pp=&(*pp)->qnext)  //DOC:insert-queue
     ;
   *pp = b;
-
   // Start disk if necessary.
   if(idequeue == b)
     idestart(b);

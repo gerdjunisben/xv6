@@ -286,6 +286,7 @@ create(char *path, short type, short major, short minor)
 int
 sys_open(void)
 {
+  cprintf("Sysopen\n");
   char *path;
   int fd, omode;
   struct file *f;
@@ -295,9 +296,11 @@ sys_open(void)
     return -1;
 
   begin_op();
+  cprintf("Path: %s", path);
 
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
+    cprintf("Create new inode\n");
     if(ip == 0){
       end_op();
       return -1;
@@ -308,6 +311,7 @@ sys_open(void)
       return -1;
     }
     ilock(ip);
+    cprintf("Major %d, minor %d\n",ip->major,ip->minor);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();

@@ -97,7 +97,7 @@ int
 fileread(struct file *f, char *addr, int n)
 {
   int r;
-
+  cprintf("fileread major: %d, minor: %d\n", f->ip->major, f->ip->minor);
   if(f->readable == 0)
     return -1;
   if(f->type == FD_PIPE)
