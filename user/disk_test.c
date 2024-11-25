@@ -4,20 +4,7 @@
 #include "kernel/fcntl.h"
 #include "user.h"
 
-
-
-int
-main(void)
-{
-    int fd = open("disk1", O_RDWR);
-    char buf[512];
-
-    buf[0] = 0;
-
-
-    uint b = 0;
-    b = read(fd, buf, 512);
-    struct superblock {
+struct superblock {
         uint size; // Size of file system image (blocks)
         uint nblocks; // Number of data blocks
         uint ninodes; // Number of inodes.
@@ -27,12 +14,29 @@ main(void)
         uint bmapstart; // Block number of first free map block
     };
 
-    struct superblock* sb = malloc(512);
-    b = read(fd, sb, 512);
+int
+main(void)
+{
+    int fd = open("disk1", O_RDWR);
+    char buf[512];
+    struct superblock sb;
 
 
+    read(fd, buf, 512);
     
-    printf(0,"Read %d bytes super block probably size %d\n", b,sb->size);
+
+    read(fd, buf, 512);
+
+    memmove(&sb, buf, sizeof(sb));
+    
+    printf(1, "Superblock Information:\n");
+    printf(1, "  Size: %d blocks\n", sb.size);
+    printf(1, "  Number of data blocks: %d\n", sb.nblocks);
+    printf(1, "  Number of inodes: %d\n", sb.ninodes);
+    printf(1, "  Number of log blocks: %d\n", sb.nlog);
+    printf(1, "  Log starts at block: %d\n", sb.logstart);
+    printf(1, "  Inodes start at block: %d\n", sb.inodestart);
+    printf(1, "  Bitmap starts at block: %d\n", sb.bmapstart);
 
     close(fd);
     exit();

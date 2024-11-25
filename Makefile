@@ -4,6 +4,12 @@ BOOT = boot
 KERNEL = kernel
 USER = user
 
+disk2.img: 
+	dd if=/dev/zero of=disk2.img bs=512 count=10000
+
+disk3.img:
+	dd if=/dev/zero of=disk3.img bs=512 count=10000
+
 xv6.img: subdirs
 	dd if=/dev/zero of=xv6.img count=10000
 	dd if=$(BOOT)/bootblock of=xv6.img conv=notrunc
@@ -72,11 +78,7 @@ ifndef CPUS
 CPUS := 2
 endif
 
-disk2.img: 
-	dd if=/dev/zero of=disk2.img bs=512 count=10000
 
-disk3.img:
-	dd if=/dev/zero of=disk3.img bs=512 count=10000
 
 
 QEMUOPTS = -drive file=$(USER)/fs.img,index=1,media=disk,format=raw \

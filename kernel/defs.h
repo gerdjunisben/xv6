@@ -56,7 +56,6 @@ int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
 
-uint            diskbmap(struct inode *, uint );
 
 // ide.c
 void            ideinit(void);

@@ -120,8 +120,7 @@ idewrite(struct inode *ip, char *buf, int n,uint offset)
   begin_op();
   for(uint tot=0; tot<n; tot+=m, offset+=m, buf+=m){
     
-    cprintf("Sector %d\n",diskbmap(ip, offset/BSIZE));
-    bp = bread(ip->minor, diskbmap(ip, offset/BSIZE));
+    bp = bread(ip->minor, offset/BSIZE);
     
     m = min(n - tot, BSIZE - offset%BSIZE);
     memmove(bp->data + offset%BSIZE, buf, m);
