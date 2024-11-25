@@ -103,6 +103,19 @@ sys_close(void)
   return 0;
 }
 
+int sys_lseek(void)
+{
+  struct file *f;
+  int offset;
+
+  if(argfd(0, 0, &f) < 0 || argint(1,&offset)<0)
+    return -1;
+
+  f->off = offset;
+  
+  return 0;
+}
+
 int
 sys_fstat(void)
 {
@@ -336,6 +349,9 @@ sys_open(void)
   f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
   return fd;
 }
+
+
+
 
 int
 sys_mkdir(void)
