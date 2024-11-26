@@ -12,15 +12,14 @@
 int
 main(void)
 {
-    int fd = open("disk1", O_RDWR);
+    int fd = open("/disk1", O_RDWR);
     char buf[BLOCK_SIZE];
     struct superblock sb;
     struct dinode di;
 
     lseek(fd,BLOCK_SIZE);
     
-    uint b = read(fd, buf, BLOCK_SIZE);
-    if(b<0)
+    if(read(fd, buf, BLOCK_SIZE)<0)
     {
         close(fd);
         exit();
@@ -40,7 +39,12 @@ main(void)
     for(int y = 0;y<25;y++)
     {
         lseek(fd,(sb.inodestart + y)*BLOCK_SIZE);
-        read(fd, buf, BLOCK_SIZE);
+        if(read(fd, buf, BLOCK_SIZE)<0)
+        {
+            close(fd);
+            printf(2,"Blew up while reading inodes that should exist, recreate file system?\n");
+            exit();
+        }
         for(int i =0;i<8;i++)
         {
             memmove(&di, buf + i*sizeof(di), sizeof(di));
@@ -59,7 +63,12 @@ main(void)
 
     for (uint b = 0; b < numBitmapBlocks; b++) {
         lseek(fd, (sb.bmapstart + b) * BLOCK_SIZE);
-        read(fd, buf, BLOCK_SIZE);
+        if(read(fd, buf, BLOCK_SIZE)<0)
+        {
+            close(fd);
+            printf(2,"Blew up while reading blocks that should exist, recreate file system?\n");
+            exit();
+        }
 
         for (int i = 0; i < BLOCK_SIZE && bitsProcessed < totalBlocks; i++) {
             for (uint j = 0; j < 8 && bitsProcessed < totalBlocks; j++) {
