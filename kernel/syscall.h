@@ -22,3 +22,4 @@
 #define SYS_close  21
 #define SYS_readmouse   22
 #define SYS_lseek 23
+#define SYS_mkfs 24

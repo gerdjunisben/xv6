@@ -27,12 +27,17 @@ UPROGS=\
 	_proc_test\
 	_page_test\
 	_df\
+	_umkfs\
+
+
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
 
 mkfs: mkfs.c $(KERNEL)/fs.h
 	gcc -Werror -Wall -I.. -o mkfs mkfs.c
+
+
 
 README: ../README
 	cp ../README .

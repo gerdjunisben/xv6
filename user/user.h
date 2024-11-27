@@ -24,7 +24,8 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int readmouse(char*);
-int lseek(int fd,int offset);
+int lseek(int fd,int);
+int mkfs(char*);
 
 // ulib.c
 int stat(char*, struct stat*);

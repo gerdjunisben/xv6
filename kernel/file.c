@@ -156,3 +156,9 @@ filewrite(struct file *f, char *addr, int n)
   panic("filewrite");
 }
 
+
+int mkfs(char* name)
+{
+  cprintf("making fs on %s\n",name);
+  return 0;
+}

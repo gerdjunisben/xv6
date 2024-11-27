@@ -463,3 +463,14 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+
+int
+sys_mkfs(void)
+{
+  char* name;
+  if(argstr(0, &name) < 0)
+    return -1;
+
+  return mkfs(name);
+}
