@@ -469,8 +469,43 @@ int
 sys_mkfs(void)
 {
   char* name;
+  struct file* f;
+  struct inode* ip;
+
+
   if(argstr(0, &name) < 0)
     return -1;
 
-  return mkfs(name);
+  if (strncmp(name, "/disk2",6) != 0 && strncmp(name, "/disk3",6) != 0) {
+    return -1;  
+  }
+  cprintf("Valid disk\n");
+  begin_op();
+  if((ip = namei(name)) == 0){
+    end_op();
+    return -1;
+  }
+  end_op();
+  //cprintf("Got the inode\n");
+
+  
+  ilock(ip);
+  if((f = filealloc()) == 0){
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+  iunlockput(ip);
+  //cprintf("Made a file\n");
+
+  f->type = FD_INODE;
+  f->ip = ip;
+  f->off = 0;
+  f->readable = O_RDWR;
+  f->writable = O_RDWR;
+
+  begin_op();
+  int res = mkfs(f);
+  end_op();
+  return res;
 }

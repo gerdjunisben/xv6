@@ -157,8 +157,9 @@ filewrite(struct file *f, char *addr, int n)
 }
 
 
-int mkfs(char* name)
+int mkfs(struct file* file)
 {
-  cprintf("making fs on %s\n",name);
+  cprintf("making fs\n");
+  
   return 0;
 }

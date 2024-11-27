@@ -36,7 +36,7 @@ void            fileinit(void);
 int             fileread(struct file*, char*, int n);
 int             filestat(struct file*, struct stat*);
 int             filewrite(struct file*, char*, int n);
-int             mkfs(char*);
+int             mkfs(struct file*);
 
 
 // fs.c
@@ -212,6 +212,12 @@ void            clearpteu(pde_t *pgdir, char *uva);
 void            stackSizeHandler(uint esp);
 void            copyOnWriteHandler();
 void            countProcPages(pde_t*,uint*);
+
+
+
+// mkfsFuncs.c
+ushort          xshort(ushort);
+uint            xint(uint);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
