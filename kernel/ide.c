@@ -121,7 +121,7 @@ idewrite(struct inode *ip, char *buf, int n,uint offset)
   for(uint tot=0; tot<n; tot+=m, offset+=m, buf+=m){
     
     bp = bread(ip->minor, offset/BSIZE);
-    bp->dev = ip->minor;
+    cprintf("Dev %d, minor num %d\n",bp->dev,ip->minor);
     m = min(n - tot, BSIZE - offset%BSIZE);
     memmove(bp->data + offset%BSIZE, buf, m);
     log_write(bp);
@@ -189,6 +189,8 @@ ideinit(void)
 
   }
 
+  cprintf("All the disks are here\n");
+
 
 
   devsw[IDE].write = idewrite;
@@ -203,6 +205,7 @@ idestart(struct buf *b)
   uint isSecondary = 0;
   uint base1 = 0x1f0;
   uint base2 = 0x3f6;
+  uint disk = 0;
   if(b->dev == 2 || b->dev == 3)
   {
     base1 = 0x170;
@@ -210,22 +213,22 @@ idestart(struct buf *b)
     isSecondary = 1;
     if(b->dev == 2)
     {
-      outb(base1 + 6, 0xe0 | (0 << 4));
+      disk = 0x0;
     }
     else
     {
-      outb(base1 + 6, 0xe0 | (1 << 4));
+      disk = 0x10;
     }
   }
   else if(b->dev == 0 || b->dev ==1)
   {
     if(b->dev == 0)
     {
-      outb(base1 + 6, 0xe0 | (0 << 4));
+      disk = 0x0;
     }
     else
     {
-      outb(base1 + 6, 0xe0 | (1 << 4));
+      disk = 0x10;
     }
   }
   else
@@ -242,16 +245,16 @@ idestart(struct buf *b)
   int write_cmd = (sector_per_block == 1) ? IDE_CMD_WRITE : IDE_CMD_WRMUL;
 
   if (sector_per_block > 7) panic("idestart");
-
+  memset(b->data, 0xAA, BSIZE);
   idewait(0,isSecondary);
   outb(base2, 0);  // generate interrupt
   outb(base1 + 2, sector_per_block);  // number of sectors
   outb(base1 + 3, sector & 0xff);
   outb(base1 + 4, (sector >> 8) & 0xff);
   outb(base1 + 5, (sector >> 16) & 0xff);
-  outb(base1 + 6, 0xe0 | ((b->dev&1)<<4) | ((sector>>24)&0x0f));
+  outb(base1 + 6, 0xe0 | disk | ((sector>>24)&0x0f));
   if(b->flags & B_DIRTY){
-    //cprintf("Writing buffer to disk %d\n",b->dev);
+    cprintf("Writing buffer to disk %d\n",b->dev);
     outb(base1 + 7, write_cmd);
     outsl(base1, b->data, BSIZE/4);
   } else {

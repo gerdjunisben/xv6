@@ -123,6 +123,6 @@ clean:
 	cd $(KERNEL); make clean
 	cd $(USER); make clean
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
-	*.o *.d *.asm *.sym xv6.img .gdbinit
+	*.o *.d *.asm *.sym xv6.img .gdbinit disk3.img disk2.img
 
 -include *.d

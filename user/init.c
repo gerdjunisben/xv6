@@ -62,6 +62,8 @@ main(void)
 
   }
 
+  printf(1,"Made file images\n");
+
   for(;;){
     while((wpid=wait()) >= 0 && wpid != pid)
     {
