@@ -28,6 +28,7 @@ UPROGS=\
 	_page_test\
 	_df\
 	_umkfs\
+	_disk_test\
 
 
 

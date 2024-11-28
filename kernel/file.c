@@ -9,6 +9,7 @@
 #include "spinlock.h"
 #include "sleeplock.h"
 #include "file.h"
+#include "stat.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -156,10 +157,108 @@ filewrite(struct file *f, char *addr, int n)
   panic("filewrite");
 }
 
+ushort
+xshort(ushort x)
+{
+  ushort y;
+  uchar *a = (uchar*)&y;
+  a[0] = x;
+  a[1] = x >> 8;
+  return y;
+}
+
+uint
+xint(uint x)
+{
+  uint y;
+  uchar *a = (uchar*)&y;
+  a[0] = x;
+  a[1] = x >> 8;
+  a[2] = x >> 16;
+  a[3] = x >> 24;
+  return y;
+}
+
+
+
+#define NINODES 200
+
+int nbitmap = FSSIZE/(BSIZE*8) + 1;
+int ninodeblocks = NINODES / IPB + 1;
+int nlog = LOGSIZE;
+int nmeta;   
+int nblocks; 
+
+struct superblock mksb;
+//char zeroes[BSIZE];
+uint freeinode = 1;
+uint freeblock;
 
 int mkfs(struct file* file)
 {
+  //int i;
+  //uint rootino,off;
+  //struct dirent de;
+  //struct dinode din;
+  char buf[BSIZE];
+
   cprintf("making fs\n");
-  
+
+  nmeta = 2 + nlog + ninodeblocks + nbitmap;
+  nblocks = FSSIZE - nmeta;
+
+  mksb.size = xint(FSSIZE);
+  mksb.nblocks = xint(nblocks);
+  mksb.ninodes = xint(NINODES);
+  mksb.nlog = xint(nlog);
+  mksb.logstart = xint(2);
+  mksb.inodestart = xint(2+nlog);
+  mksb.bmapstart = xint(2+nlog+ninodeblocks);
+  cprintf("major %d, minor %d\n",file->ip->major,file->ip->minor);
+
+  freeblock = nmeta;
+  /*
+  for(i = 0; i < FSSIZE; i++) //zero out all blocks
+    filewrite(file,zeroes,BSIZE);
+
+  cprintf("Done writing\n");*/
+
+  file->off = BSIZE;
+  memset(buf, 0, sizeof(buf));
+  memmove(buf, &mksb, sizeof(mksb));
+  filewrite(file,buf,BSIZE);
+
+
+  //rootino = ialloc(file->ip->minor,T_DIR);
+  /*
+  de.inum = 0;
+  for(int x = 0;x<DIRSIZ;x++)
+  {
+    de.name[x] = 0;
+  }
+  de.inum = xshort(rootino);
+  de.name[0] = '.';
+  de.name[1] = '\0';
+  iappend(rootino, &de, sizeof(de));
+
+
+  de.inum = 0;
+  for(int x = 0;x<DIRSIZ;x++)
+  {
+    de.name[x] = 0;
+  }
+  de.inum = xshort(rootino);
+  de.name[0] = '.';
+  de.name[1] = '.';
+  de.name[2] = '\0';
+  iappend(rootino, &de, sizeof(de));
+
+  rinode(rootino, &din);
+  off = xint(din.size);
+  off = ((off/BSIZE) + 1) * BSIZE;
+  din.size = xint(off);
+
+  balloc(freeblock);
+  */
   return 0;
 }

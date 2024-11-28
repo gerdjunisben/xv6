@@ -71,7 +71,7 @@ trap(struct trapframe *tf)
       acquire(&tickslock);
       ticks++;
 
-      procStats(ticks);
+      //procStats(ticks);
 
       wakeup(&ticks);
       release(&tickslock);

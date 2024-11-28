@@ -34,6 +34,7 @@
 struct logheader {
   int n;
   int block[LOGSIZE];
+  int dev[LOGSIZE];
 };
 
 struct log {
@@ -73,8 +74,9 @@ install_trans(void)
 
   for (tail = 0; tail < log.lh.n; tail++) {
     struct buf *lbuf = bread(log.dev, log.start+tail+1); // read log block
-    struct buf *dbuf = bread(log.dev, log.lh.block[tail]); // read dst
+    struct buf *dbuf = bread(log.lh.dev[tail], log.lh.block[tail]); // read dst
     memmove(dbuf->data, lbuf->data, BSIZE);  // copy block to dst
+    cprintf("writing to disk dev %d\n",dbuf->dev);
     bwrite(dbuf);  // write dst to disk
     brelse(lbuf);
     brelse(dbuf);
@@ -91,6 +93,7 @@ read_head(void)
   log.lh.n = lh->n;
   for (i = 0; i < log.lh.n; i++) {
     log.lh.block[i] = lh->block[i];
+    log.lh.dev[i] = lh->dev[i];
   }
   brelse(buf);
 }
@@ -106,7 +109,9 @@ write_head(void)
   int i;
   hb->n = log.lh.n;
   for (i = 0; i < log.lh.n; i++) {
+    cprintf("Writing block header to log for disk %d\n",log.lh.dev[i]);
     hb->block[i] = log.lh.block[i];
+    hb->dev[i] = log.lh.dev[i];
   }
   bwrite(buf);
   brelse(buf);
@@ -177,12 +182,15 @@ end_op(void)
 static void
 write_log(void)
 {
+  cprintf("Writing cache to log\n");
   int tail;
 
   for (tail = 0; tail < log.lh.n; tail++) {
+    cprintf("log dev %d================\n",log.dev);
     struct buf *to = bread(log.dev, log.start+tail+1); // log block
-    struct buf *from = bread(log.dev, log.lh.block[tail]); // cache block
+    struct buf *from = bread(log.lh.dev[tail], log.lh.block[tail]); // cache block
     memmove(to->data, from->data, BSIZE);
+    cprintf("Writing log to %d\n",log.lh.dev[tail]);
     bwrite(to);  // write the log
     brelse(from);
     brelse(to);
@@ -192,7 +200,9 @@ write_log(void)
 static void
 commit()
 {
+  
   if (log.lh.n > 0) {
+    cprintf("executing commity on %d logs\n",log.lh.n);
     write_log();     // Write modified blocks from cache to log
     write_head();    // Write header to disk -- the real commit
     install_trans(); // Now install writes to home locations
@@ -214,7 +224,7 @@ void
 log_write(struct buf *b)
 {
   int i;
-
+  cprintf("Logging write to %d\n",b->dev);
   if (log.lh.n >= LOGSIZE || log.lh.n >= log.size - 1)
     panic("too big a transaction");
   if (log.outstanding < 1)
@@ -222,10 +232,11 @@ log_write(struct buf *b)
 
   acquire(&log.lock);
   for (i = 0; i < log.lh.n; i++) {
-    if (log.lh.block[i] == b->blockno)   // log absorbtion
+    if (log.lh.block[i] == b->blockno && b->dev == log.lh.dev[i])   // log absorbtion
       break;
   }
   log.lh.block[i] = b->blockno;
+  log.lh.dev[i] = b->dev;
   if (i == log.lh.n)
     log.lh.n++;
   b->flags |= B_DIRTY; // prevent eviction

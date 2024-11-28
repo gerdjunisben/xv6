@@ -83,7 +83,7 @@ ideread(struct inode *ip,  char *dst, int n, uint offset){
   }*/
   begin_op();
   for(uint tot=0; tot<n; tot+=m, offset+=m, dst+=m){
-    cprintf("block number %d\n",offset/BSIZE);
+    //cprintf("block number %d\n",offset/BSIZE);
     bp = bread(ip->minor, offset/BSIZE);
     m = min(n - tot, BSIZE - offset%BSIZE);
     memmove(dst, bp->data + offset%BSIZE, m);
@@ -121,7 +121,7 @@ idewrite(struct inode *ip, char *buf, int n,uint offset)
   for(uint tot=0; tot<n; tot+=m, offset+=m, buf+=m){
     
     bp = bread(ip->minor, offset/BSIZE);
-    
+    bp->dev = ip->minor;
     m = min(n - tot, BSIZE - offset%BSIZE);
     memmove(bp->data + offset%BSIZE, buf, m);
     log_write(bp);
@@ -199,6 +199,7 @@ ideinit(void)
 static void
 idestart(struct buf *b)
 {
+  //cprintf("Executing a request on disk %d>>>>>>>>>>>>>\n",b->dev);
   uint isSecondary = 0;
   uint base1 = 0x1f0;
   uint base2 = 0x3f6;
@@ -250,9 +251,11 @@ idestart(struct buf *b)
   outb(base1 + 5, (sector >> 16) & 0xff);
   outb(base1 + 6, 0xe0 | ((b->dev&1)<<4) | ((sector>>24)&0x0f));
   if(b->flags & B_DIRTY){
+    //cprintf("Writing buffer to disk %d\n",b->dev);
     outb(base1 + 7, write_cmd);
     outsl(base1, b->data, BSIZE/4);
   } else {
+    //cprintf("Reading into buffer from disk %d\n",b->dev);
     outb(base1 + 7, read_cmd);
   }
 }
@@ -277,6 +280,7 @@ ideintr()
     release(curLock);
     return;
   }
+  //cprintf("Interrupt to disk %d\n",b->dev);
   if(b->dev == 2 || b->dev == 3)
   {
     isSecondary = 1;
@@ -312,6 +316,9 @@ ideintr()
   release(curLock);
 }
 
+
+
+
 //PAGEBREAK!
 // Sync buf with disk.
 // If B_DIRTY is set, write buf to disk, clear B_DIRTY, set B_VALID.
@@ -320,7 +327,7 @@ void
 iderw(struct buf *b)
 {
   struct spinlock* curlock = &idelock;
-  //cprintf("b dev %d\n",b->dev);
+  //cprintf("Writing to disk %d<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",b->dev);
 
   struct buf **pp;
   

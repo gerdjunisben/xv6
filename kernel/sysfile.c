@@ -495,7 +495,7 @@ sys_mkfs(void)
     end_op();
     return -1;
   }
-  iunlockput(ip);
+  iunlock(ip);
   //cprintf("Made a file\n");
 
   f->type = FD_INODE;
@@ -504,8 +504,7 @@ sys_mkfs(void)
   f->readable = O_RDWR;
   f->writable = O_RDWR;
 
-  begin_op();
   int res = mkfs(f);
-  end_op();
+
   return res;
 }

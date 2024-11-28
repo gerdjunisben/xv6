@@ -215,9 +215,6 @@ void            countProcPages(pde_t*,uint*);
 
 
 
-// mkfsFuncs.c
-ushort          xshort(ushort);
-uint            xint(uint);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
