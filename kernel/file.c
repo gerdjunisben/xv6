@@ -397,7 +397,7 @@ iappend(uint inum, void *xp, int n)
     }
     n1 = min(n, (fbn + 1) * BSIZE - off);
     rsect(x, buf);
-    memmove(p, buf + off - (fbn * BSIZE), n1);//hopefully works the same :)
+    memmove(buf + off - (fbn * BSIZE),p, n1);//hopefully works the same :)
     //bcopy(p, buf + off - (fbn * BSIZE), n1);
     wsect(x, buf);
     n -= n1;
