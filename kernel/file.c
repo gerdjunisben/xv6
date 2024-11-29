@@ -179,6 +179,14 @@ xint(uint x)
   return y;
 }
 
+void bzero(void *ptr, uint size) {
+    unsigned char *byte_ptr = (unsigned char *)ptr; 
+    while (size--) {
+        *byte_ptr++ = 0; 
+    }
+}
+
+
 
 
 #define NINODES 200
@@ -190,17 +198,30 @@ int nmeta;
 int nblocks; 
 
 struct superblock mksb;
-//char zeroes[BSIZE];
+struct file* curFile;
+char zeroes[BSIZE];
 uint freeinode = 1;
 uint freeblock;
 
+
+void balloc(int);
+void wsect(uint, void*);
+void winode(uint, struct dinode*);
+void rinode(uint inum, struct dinode *ip);
+void rsect(uint sec, void *buf);
+uint ourialloc(ushort type);
+void iappend(uint inum, void *p, int n);
+
+
 int mkfs(struct file* file)
 {
-  //int i;
-  //uint rootino,off;
-  //struct dirent de;
-  //struct dinode din;
+  int i;
+  uint rootino,off;
+  struct dirent de;
+  struct dinode din;
   char buf[BSIZE];
+
+  curFile = file;
 
   cprintf("making fs\n");
 
@@ -217,11 +238,11 @@ int mkfs(struct file* file)
   cprintf("major %d, minor %d\n",file->ip->major,file->ip->minor);
 
   freeblock = nmeta;
-  /*
+  
   for(i = 0; i < FSSIZE; i++) //zero out all blocks
     filewrite(file,zeroes,BSIZE);
 
-  cprintf("Done writing\n");*/
+  cprintf("Done writing\n");
 
   file->off = BSIZE;
   memset(buf, 0, sizeof(buf));
@@ -229,24 +250,16 @@ int mkfs(struct file* file)
   filewrite(file,buf,BSIZE);
 
 
-  //rootino = ialloc(file->ip->minor,T_DIR);
-  /*
-  de.inum = 0;
-  for(int x = 0;x<DIRSIZ;x++)
-  {
-    de.name[x] = 0;
-  }
+  rootino = ourialloc(T_DIR);
+  
+  bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   de.name[0] = '.';
   de.name[1] = '\0';
   iappend(rootino, &de, sizeof(de));
 
 
-  de.inum = 0;
-  for(int x = 0;x<DIRSIZ;x++)
-  {
-    de.name[x] = 0;
-  }
+  bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   de.name[0] = '.';
   de.name[1] = '.';
@@ -259,6 +272,138 @@ int mkfs(struct file* file)
   din.size = xint(off);
 
   balloc(freeblock);
-  */
+  
   return 0;
+}
+
+
+void
+wsect(uint sec, void *buf)
+{
+  curFile->off = sec*BSIZE;
+  if(filewrite(curFile, buf, BSIZE) != BSIZE){
+
+    exit();
+  }
+}
+
+void
+winode(uint inum, struct dinode *ip)
+{
+  char buf[BSIZE];
+  uint bn;
+  struct dinode *dip;
+
+  bn = IBLOCK(inum, mksb);
+  rsect(bn, buf);
+  dip = ((struct dinode*)buf) + (inum % IPB);
+  *dip = *ip;
+  wsect(bn, buf);
+}
+
+
+void
+rinode(uint inum, struct dinode *ip)
+{
+  char buf[BSIZE];
+  uint bn;
+  struct dinode *dip;
+
+  bn = IBLOCK(inum, mksb);
+  rsect(bn, buf);
+  dip = ((struct dinode*)buf) + (inum % IPB);
+  *ip = *dip;
+}
+
+void
+rsect(uint sec, void *buf)
+{
+  curFile->off = sec*BSIZE;
+  if(fileread(curFile, buf, BSIZE) != BSIZE){
+
+    exit();
+  }
+}
+
+uint
+ourialloc(ushort type)
+{
+  uint inum = freeinode++;
+  struct dinode din;
+
+  bzero(&din, sizeof(din));
+  
+
+  din.type = xshort(type);
+  din.nlink = xshort(1);
+  din.size = xint(0);
+  winode(inum, &din);
+  return inum;
+}
+
+void
+balloc(int used)
+{
+  uchar buf[BSIZE];
+  int i;
+
+  bzero(buf, BSIZE);
+  for(i = 0; i < used; i++){
+    buf[i/8] = buf[i/8] | (0x1 << (i%8));
+  }
+  wsect(mksb.bmapstart, buf);
+}
+
+
+
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
+void
+iappend(uint inum, void *xp, int n)
+{
+  char *p = (char*)xp;
+  uint fbn, off, n1;
+  struct dinode din;
+  char buf[BSIZE];
+  uint indirect[NINDIRECT];
+  uint x;
+
+
+
+
+  rinode(inum, &din);
+ 
+
+
+  off = xint(din.size);
+  // printf("append inum %d at off %d sz %d\n", inum, off, n);
+  while(n > 0){
+    fbn = off / BSIZE;
+    if(fbn < NDIRECT){
+      if(xint(din.addrs[fbn]) == 0){
+        din.addrs[fbn] = xint(freeblock++);
+      }
+      x = xint(din.addrs[fbn]);
+    } else {
+      if(xint(din.addrs[NDIRECT]) == 0){
+        din.addrs[NDIRECT] = xint(freeblock++);
+      }
+      rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
+      if(indirect[fbn - NDIRECT] == 0){
+        indirect[fbn - NDIRECT] = xint(freeblock++);
+        wsect(xint(din.addrs[NDIRECT]), (char*)indirect);
+      }
+      x = xint(indirect[fbn-NDIRECT]);
+    }
+    n1 = min(n, (fbn + 1) * BSIZE - off);
+    rsect(x, buf);
+    memmove(p, buf + off - (fbn * BSIZE), n1);//hopefully works the same :)
+    //bcopy(p, buf + off - (fbn * BSIZE), n1);
+    wsect(x, buf);
+    n -= n1;
+    off += n1;
+    p += n1;
+  }
+  din.size = xint(off);
+  winode(inum, &din);
 }

@@ -4,6 +4,24 @@
 int
 main(int argc, char *argv[])
 {
-  mkfs("/disk2");
+  char diskName[20];
+  diskName[0] = '/';
+  if(argc>1)
+  {
+    uint i =0;
+    while(argv[1][i] !='\0')
+    {
+      diskName[i+1] = argv[1][i];
+      i++;
+    }
+    diskName[i+1] = '\0';
+  }
+  else
+  {
+    printf(2,"Invalid disk\n");
+    exit();
+  }
+  printf(0,"Formatting disk %s, this may take a few moments\n",diskName);
+  mkfs(diskName);
   exit();
 }

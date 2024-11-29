@@ -96,8 +96,6 @@ bget(uint dev, uint blockno)
 struct buf*
 bread(uint dev, uint blockno)
 {
-  if(dev == 2)
-    cprintf("bread dev %d\n",dev);
   struct buf *b;
 
   b = bget(dev, blockno);
@@ -111,8 +109,6 @@ bread(uint dev, uint blockno)
 void
 bwrite(struct buf *b)
 {
-  if(b->dev == 2)
-    cprintf("bwrite dev %d\n",b->dev);
   if(!holdingsleep(&b->lock))
     panic("bwrite");
   b->flags |= B_DIRTY;

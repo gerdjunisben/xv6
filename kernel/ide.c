@@ -63,7 +63,7 @@ idewait(int checkerr,uint isSecondary)
 
 int
 ideread(struct inode *ip,  char *dst, int n, uint offset){
-  cprintf("IDEREAD %d bytes, %d offset, %d disk\n",n,offset,ip->size);
+  //cprintf("IDEREAD %d bytes, %d offset, %d disk\n",n,offset,ip->size);
   iunlock(ip);
   
   uint m =0;
@@ -92,14 +92,14 @@ ideread(struct inode *ip,  char *dst, int n, uint offset){
   end_op();
 
   ilock(ip);
-   cprintf("COMPLETED IDEREAD\n");
+   //cprintf("COMPLETED IDEREAD\n");
   return n;
 }
 
 int
 idewrite(struct inode *ip, char *buf, int n,uint offset)
 {
-  cprintf("IDEWRITE %d bytes, %d offset, %d disk\n",n,offset,ip->size);
+  //cprintf("IDEWRITE %d bytes, %d offset, %d disk\n",n,offset,ip->size);
   iunlock(ip);
 
   uint m =0;
@@ -121,7 +121,7 @@ idewrite(struct inode *ip, char *buf, int n,uint offset)
   for(uint tot=0; tot<n; tot+=m, offset+=m, buf+=m){
     
     bp = bread(ip->minor, offset/BSIZE);
-    cprintf("Dev %d, minor num %d\n",bp->dev,ip->minor);
+    //cprintf("Dev %d, minor num %d\n",bp->dev,ip->minor);
     m = min(n - tot, BSIZE - offset%BSIZE);
     memmove(bp->data + offset%BSIZE, buf, m);
     log_write(bp);
@@ -135,7 +135,7 @@ idewrite(struct inode *ip, char *buf, int n,uint offset)
   }
 
   ilock(ip);
-  cprintf("COMPLETED IDEWRITE\n");
+  //cprintf("COMPLETED IDEWRITE\n");
   return n;
 }
 
@@ -189,7 +189,7 @@ ideinit(void)
 
   }
 
-  cprintf("All the disks are here\n");
+  //cprintf("All the disks are here\n");
 
 
 
@@ -253,7 +253,7 @@ idestart(struct buf *b)
   outb(base1 + 5, (sector >> 16) & 0xff);
   outb(base1 + 6, 0xe0 | disk | ((sector>>24)&0x0f));
   if(b->flags & B_DIRTY){
-    cprintf("Writing buffer to disk %d\n",b->dev);
+    //cprintf("Writing buffer to disk %d\n",b->dev);
     outb(base1 + 7, write_cmd);
     outsl(base1, b->data, BSIZE/4);
   } else {
