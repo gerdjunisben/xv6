@@ -245,7 +245,6 @@ idestart(struct buf *b)
   int write_cmd = (sector_per_block == 1) ? IDE_CMD_WRITE : IDE_CMD_WRMUL;
 
   if (sector_per_block > 7) panic("idestart");
-  memset(b->data, 0xAA, BSIZE);
   idewait(0,isSecondary);
   outb(base2, 0);  // generate interrupt
   outb(base1 + 2, sector_per_block);  // number of sectors
