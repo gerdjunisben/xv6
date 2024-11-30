@@ -530,6 +530,7 @@ namecmp(const char *s, const char *t)
 struct inode*
 dirlookup(struct inode *dp, char *name, uint *poff)
 {
+  cprintf("looking for %s\n",name);
   uint off, inum;
   struct dirent de;
 
@@ -623,6 +624,11 @@ skipelem(char *path, char *name)
   return path;
 }
 
+
+
+
+
+
 // Look up and return the inode for a path name.
 // If parent != 0, return the inode for the parent and copy the final
 // path element into name, which must have room for DIRSIZ bytes.
@@ -654,11 +660,16 @@ namex(char *path, int nameiparent, char *name)
     }
     iunlockput(ip);
     ip = next;
+    if(handleMount(ip)==1)
+    {
+      return ip;
+    }
   }
   if(nameiparent){
     iput(ip);
     return 0;
   }
+  cprintf("Found inode");
   return ip;
 }
 
@@ -674,4 +685,6 @@ nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
 }
+
+
 

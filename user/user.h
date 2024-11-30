@@ -26,6 +26,8 @@ int uptime(void);
 int readmouse(char*);
 int lseek(int fd,int);
 int mkfs(char*);
+int mount(char*,char*);
+int unmount(char*);
 
 // ulib.c
 int stat(char*, struct stat*);

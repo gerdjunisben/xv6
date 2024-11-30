@@ -135,6 +135,8 @@ extern int sys_uptime(void);
 extern int sys_readmouse(void);
 extern int sys_lseek(void);
 extern int sys_mkfs(void);
+extern int sys_mount(void);
+extern int sys_unmount(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -161,6 +163,8 @@ static int (*syscalls[])(void) = {
 [SYS_readmouse]   sys_readmouse,
 [SYS_lseek]   sys_lseek,
 [SYS_mkfs]    sys_mkfs,
+[SYS_mount]   sys_mount,
+[SYS_unmount] sys_unmount,
 };
 
 void

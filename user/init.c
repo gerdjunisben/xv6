@@ -52,11 +52,13 @@ main(void)
       exit();
     }
   }
-
+  //printf(1,"Making disks\n");
   for(;i<deviceCount;i++)
   {
+    //printf(1,"Opening %s with major %d and minor %d\n",devices[i],majorNums[i],minorNums[i]);
     int fd = open(devices[i], O_RDWR);
     if(fd < 0){
+      //printf(1,"Making %s with major %d and minor %d\n",devices[i],majorNums[i],minorNums[i]);
       mknod(devices[i], majorNums[i], minorNums[i]);
     }
 

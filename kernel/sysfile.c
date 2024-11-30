@@ -508,3 +508,62 @@ sys_mkfs(void)
 
   return res;
 }
+
+int sys_mount(void)
+{
+  char* source;
+  char* target;
+  struct inode* sourceip;
+  struct inode* targetip;
+  if(argstr(0, &source) < 0 || argstr(1, &target) < 0)
+    return -1;
+
+
+  cprintf("source %s, target %s\n",source,target);
+
+  if (strncmp(source, "/disk2",6) != 0 && strncmp(source, "/disk3",6) != 0) {
+    return -1;  
+  }
+  cprintf("Valid disk\n");
+  begin_op();
+  if((sourceip = namei(source)) == 0){
+    end_op();
+    return -1;
+  }
+  end_op();
+
+  cprintf("source %d major, %d minor, %d type\n",sourceip->major,sourceip->minor,sourceip->type);
+  begin_op();
+  if((targetip = namei(target)) == 0){
+    end_op();
+    return -1;
+  }
+  end_op();
+
+  
+  cprintf("target %d major, %d minor, %d type\n",targetip->major,targetip->minor,targetip->type);
+
+  if(mount(sourceip,targetip)<0)
+  {
+    return -1;
+  }
+  
+  
+  //note all this junk should probably be done elsewhere
+  //get the inodes for source file directory
+  //traverse file system to directory
+  //these check existence and will be used somewhat
+
+  //mount table
+  //each entry has a major and minor device number and the inode of
+  //mount point
+  return 0;
+}
+
+int sys_unmount(void)
+{
+  char* target;
+  if(argstr(0, &target) < 0)
+    return -1;
+  return 0;
+}

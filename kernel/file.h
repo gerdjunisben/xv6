@@ -37,3 +37,4 @@ extern struct devsw devsw[];
 #define CONSOLE 1
 #define COM    2
 #define IDE   3
+
