@@ -27,6 +27,24 @@ static void itrunc(struct inode*);
 // only one device
 struct superblock sb; 
 
+#define deviceCount 4
+char* devices[] = {"/disk0","/disk1","/disk2","/disk3"};
+int majorNums[] = {3,3,3,3};
+int minorNums[] = {0,1,2,3};
+
+
+//mount table
+struct mountEntry{
+  struct inode inode;
+  uint majorDeviceNum;
+  uint minorDeviceNum;
+};
+
+
+static struct mountEntry mountTable[10];
+static uint mountTableSize = 0;
+
+
 // Read the super block.
 void
 readsb(int dev, struct superblock *sb)
@@ -525,6 +543,53 @@ namecmp(const char *s, const char *t)
   return strncmp(s, t, DIRSIZ);
 }
 
+struct inode* handleReverseMount(uint dev)
+{
+  cprintf("handling reverse mount\n");
+  for(int i = 0;i<mountTableSize;i++)
+  {
+    cprintf("dev %d, inum %d\n",mountTable[i].inode.dev,mountTable[i].inode.inum);
+
+    if(mountTable[i].minorDeviceNum == dev)
+    {
+      cprintf("found mounted dir\n");
+      return &mountTable[i].inode;
+    }
+  }
+  return 0;
+}
+
+struct inode* handleMount(struct inode* cur)
+{
+  struct inode* temp;
+  cprintf("handling mount\n");
+  cprintf("cur: dev %d, inum %d\n",cur->dev,cur->inum);
+  for(int i = 0;i<mountTableSize;i++)
+  {
+    cprintf("dev %d, inum %d\n",mountTable[i].inode.dev,mountTable[i].inode.inum);
+
+    if(mountTable[i].inode.dev == cur->dev && mountTable[i].inode.inum == cur->inum)
+    {
+      for(int j=0;j<deviceCount;j++)
+      {
+        if(majorNums[j] == mountTable[i].majorDeviceNum && minorNums[j] == mountTable[i].minorDeviceNum)
+        {
+          cprintf("Found device %s\n",devices[j]);
+          temp = namei(devices[j]);
+          temp = iget(minorNums[j], 1);
+          cprintf("Root %d, %d\n",temp->dev, temp->inum);
+
+          return temp;
+        }
+      }
+
+      return 0;
+    }
+  }
+  return 0;
+}
+
+
 // Look for a directory entry in a directory.
 // If found, set *poff to byte offset of entry.
 struct inode*
@@ -543,11 +608,21 @@ dirlookup(struct inode *dp, char *name, uint *poff)
     if(de.inum == 0)
       continue;
     if(namecmp(name, de.name) == 0){
+      if(namecmp(name,"..")==0)
+      {
+        struct inode* temp = handleReverseMount(dp->dev);
+        if(temp!=0)
+        {
+          return temp;
+        }
+      }
       // entry matches path element
       if(poff)
         *poff = off;
       inum = de.inum;
-      return iget(dp->dev, inum);
+      struct inode* ip =  iget(dp->dev, inum);
+      
+      return ip;
     }
   }
 
@@ -629,6 +704,20 @@ skipelem(char *path, char *name)
 
 
 
+
+
+int mount(struct inode *source, struct inode *target){
+  cprintf("Mounting drive\n");
+  struct mountEntry* temp = &mountTable[mountTableSize++];
+  temp->inode = *target;
+  ilock(source);
+  temp->majorDeviceNum = source->major;
+  temp->minorDeviceNum = source->minor;
+  iunlock(source);
+  return 0;
+}
+
+
 // Look up and return the inode for a path name.
 // If parent != 0, return the inode for the parent and copy the final
 // path element into name, which must have room for DIRSIZ bytes.
@@ -645,6 +734,7 @@ namex(char *path, int nameiparent, char *name)
 
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
+    cprintf("path %s\n",path);
     if(ip->type != T_DIR){
       iunlockput(ip);
       return 0;
@@ -660,9 +750,14 @@ namex(char *path, int nameiparent, char *name)
     }
     iunlockput(ip);
     ip = next;
-    if(handleMount(ip)==1)
+    if(namecmp(name,"..")!=0)
     {
-      return ip;
+      struct inode* temp;
+
+      if((temp = handleMount(ip))>0)
+      {
+        *ip = *temp;
+      }
     }
   }
   if(nameiparent){

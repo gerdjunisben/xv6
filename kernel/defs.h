@@ -37,8 +37,6 @@ int             fileread(struct file*, char*, int n);
 int             filestat(struct file*, struct stat*);
 int             filewrite(struct file*, char*, int n);
 int             mkfs(struct file*);
-int             mount(struct inode*,struct inode*);
-int             handleMount(struct inode*);
 
 
 // fs.c
@@ -59,6 +57,7 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
+int             mount(struct inode*,struct inode*);
 
 
 

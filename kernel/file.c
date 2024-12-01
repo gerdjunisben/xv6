@@ -157,58 +157,7 @@ filewrite(struct file *f, char *addr, int n)
   panic("filewrite");
 }
 
-#define deviceCount 4
-char* devices[] = {"/disk0","/disk1","/disk2","/disk3"};
-int majorNums[] = {3,3,3,3};
-int minorNums[] = {0,1,2,3};
 
-
-//mount table
-struct mountEntry{
-  struct inode* inode;
-  uint majorDeviceNum;
-  uint minorDeviceNum;
-};
-
-
-static struct mountEntry mountTable[10];
-static uint mountTableSize = 0;
-
-int handleMount(struct inode* cur)
-{
-  cprintf("handling mount\n");
-  cprintf("cur: dev %d, inum %d\n",cur->dev,cur->inum);
-  for(int i = 0;i<mountTableSize;i++)
-  {
-    cprintf("dev %d, inum %d\n",mountTable[i].inode->dev,mountTable[i].inode->inum);
-    if(mountTable[i].inode->dev == cur->dev && mountTable[i].inode->inum == cur->inum)
-    {
-      for(int j=0;j<deviceCount;j++)
-      {
-        if(majorNums[j] == mountTable[i].majorDeviceNum && minorNums[j] == mountTable[i].minorDeviceNum)
-        {
-          cprintf("Found device %s\n",devices[j]);
-          *cur = *namei(devices[j]);
-          return 1;
-        }
-      }
-      return -1;
-    }
-  }
-  return 0;
-}
-
-
-int mount(struct inode *source, struct inode *target){
-  cprintf("Mounting drive\n");
-  struct mountEntry* temp = &mountTable[mountTableSize++];
-  temp->inode = target;
-  ilock(source);
-  temp->majorDeviceNum = source->major;
-  temp->minorDeviceNum = source->minor;
-  iunlock(source);
-  return 0;
-}
 
 ushort
 xshort(ushort x)
