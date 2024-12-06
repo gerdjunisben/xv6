@@ -29,6 +29,8 @@ UPROGS=\
 	_df\
 	_umkfs\
 	_disk_test\
+	_mount\
+	_unmount\
 
 
 

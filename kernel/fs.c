@@ -593,7 +593,7 @@ struct inode* handleMount(struct inode* cur)
 // Look for a directory entry in a directory.
 // If found, set *poff to byte offset of entry.
 struct inode*
-dirlookup(struct inode *dp, char *name, uint *poff)
+dirlookup(struct inode *dp, char *name, uint *poff,uint doMount)
 {
   cprintf("looking for %s\n",name);
   uint off, inum;
@@ -609,18 +609,20 @@ dirlookup(struct inode *dp, char *name, uint *poff)
       continue;
     
     if(namecmp(name, de.name) == 0){
-      if(namecmp(name,"..")==0)
+      if(namecmp(name,"..")==0 && doMount)
       {
         struct inode* temp = handleReverseMount(dp->dev);
         if(temp!=0)
         {
           cprintf("Trying to handle a reverse mount\n");
+          cprintf("Temp %d %d %d\n",temp->dev,temp->major,temp->minor);
           if (temp == dp) {
             cprintf("Avoiding cyclical\n");
             iput(temp); 
             return dp; 
           }
-          dp =  dirlookup(temp,"..",poff);
+          dp =  dirlookup(temp,"..",poff,1);
+
           if(poff)
             *poff = off;
       
@@ -649,7 +651,7 @@ dirlink(struct inode *dp, char *name, uint inum)
   struct inode *ip;
 
   // Check that name is not present.
-  if((ip = dirlookup(dp, name, 0)) != 0){
+  if((ip = dirlookup(dp, name, 0,1)) != 0){
     iput(ip);
     return -1;
   }
@@ -719,6 +721,10 @@ skipelem(char *path, char *name)
 
 int mount(struct inode *source, struct inode *target){
   cprintf("Mounting drive\n");
+  if(mountTableSize >= 9)
+  {
+    return -1;
+  }
   struct mountEntry* temp = &mountTable[mountTableSize++];
   temp->inode = *target;
   ilock(source);
@@ -730,8 +736,32 @@ int mount(struct inode *source, struct inode *target){
 
 int unmount(struct inode *target)
 {
-  //iterate through inodes
-  //check ref count
+  int i;
+  for(i = 0;i<mountTableSize;i++)
+  {
+    if(target->dev == mountTable[i].inode.dev && target->inum == mountTable[i].inode.inum)
+    {
+      cprintf("Found it\n");
+      break;
+    }
+  }
+
+  //ref inode is I think 1
+  ilock(&mountTable[i].inode);
+  if(mountTable[i].inode.ref>1)
+  {
+    iunlock(&mountTable[i].inode);
+    cprintf("Too many referencing\n");
+    return -1;
+  }
+  iunlock(&mountTable[i].inode);
+  for(;i<mountTableSize-1;i++)
+  {
+    mountTable[i].inode = mountTable[i+1].inode;
+    mountTable[i].majorDeviceNum = mountTable[i+1].majorDeviceNum;
+    mountTable[i].minorDeviceNum = mountTable[i+1].minorDeviceNum;
+  }
+  mountTableSize--;
   return 0;
 }
 
@@ -741,7 +771,7 @@ int unmount(struct inode *target)
 // path element into name, which must have room for DIRSIZ bytes.
 // Must be called inside a transaction since it calls iput().
 static struct inode*
-namex(char *path, int nameiparent, char *name)
+namex(char *path, int nameiparent, char *name,uint doMount)
 {
   struct inode *ip, *next;
 
@@ -762,13 +792,13 @@ namex(char *path, int nameiparent, char *name)
       iunlock(ip);
       return ip;
     }
-    if((next = dirlookup(ip, name, 0)) == 0){
+    if((next = dirlookup(ip, name, 0,doMount)) == 0){
       iunlockput(ip);
       return 0;
     }
     iunlockput(ip);
     ip = next;
-    if(namecmp(name,"..")!=0)
+    if(namecmp(name,"..")!=0 && doMount)
     {
       struct inode* temp;
 
@@ -790,14 +820,22 @@ struct inode*
 namei(char *path)
 {
   char name[DIRSIZ];
-  return namex(path, 0, name);
+  return namex(path, 0, name,1);
+}
+
+
+struct inode*
+nameiNoMount(char *path)
+{
+  char name[DIRSIZ];
+  return namex(path, 0, name,0);
 }
 
 struct inode*
 nameiparent(char *path, char *name)
 {
   cprintf("The path %s\n",path);
-  return namex(path, 1, name);
+  return namex(path, 1, name,1);
 }
 
 
