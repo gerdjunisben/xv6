@@ -563,7 +563,27 @@ int sys_mount(void)
 int sys_unmount(void)
 {
   char* target;
+  struct inode* targetip;
   if(argstr(0, &target) < 0)
     return -1;
+
+
+
+  begin_op();
+  if((targetip = namei(target)) == 0){
+    end_op();
+    return -1;
+  }
+  end_op();
+
+  
+  cprintf("target %d major, %d minor, %d type\n",targetip->major,targetip->minor,targetip->type);
+
+  if(unmount(targetip)<0)
+  {
+    return -1;
+  }
+  
+
   return 0;
 }

@@ -607,13 +607,24 @@ dirlookup(struct inode *dp, char *name, uint *poff)
       panic("dirlookup read");
     if(de.inum == 0)
       continue;
+    
     if(namecmp(name, de.name) == 0){
       if(namecmp(name,"..")==0)
       {
         struct inode* temp = handleReverseMount(dp->dev);
         if(temp!=0)
         {
-          return temp;
+          cprintf("Trying to handle a reverse mount\n");
+          if (temp == dp) {
+            cprintf("Avoiding cyclical\n");
+            iput(temp); 
+            return dp; 
+          }
+          dp =  dirlookup(temp,"..",poff);
+          if(poff)
+            *poff = off;
+      
+          return dp;
         }
       }
       // entry matches path element
@@ -717,6 +728,13 @@ int mount(struct inode *source, struct inode *target){
   return 0;
 }
 
+int unmount(struct inode *target)
+{
+  //iterate through inodes
+  //check ref count
+  return 0;
+}
+
 
 // Look up and return the inode for a path name.
 // If parent != 0, return the inode for the parent and copy the final
@@ -778,6 +796,7 @@ namei(char *path)
 struct inode*
 nameiparent(char *path, char *name)
 {
+  cprintf("The path %s\n",path);
   return namex(path, 1, name);
 }
 
