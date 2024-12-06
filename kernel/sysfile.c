@@ -284,10 +284,11 @@ create(char *path, short type, short major, short minor)
     dp->nlink++;  // for ".."
     iupdate(dp);
     // No ip->nlink++ for ".": avoid cyclic ref count.
+    cprintf("Linking . and ..\n");
     if(dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0)
       panic("create dots");
   }
-
+  cprintf("Linking dirlink\n");
   if(dirlink(dp, name, ip->inum) < 0)
     panic("create: dirlink");
 
@@ -309,7 +310,7 @@ sys_open(void)
     return -1;
 
   begin_op();
-  cprintf("Path: %s", path);
+  cprintf("Path: %s\n", path);
 
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
