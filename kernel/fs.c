@@ -33,6 +33,9 @@ int majorNums[] = {3,3,3,3};
 int minorNums[] = {0,1,2,3};
 
 
+#define mountPorts 16
+
+
 //mount table
 struct mountEntry{
   struct inode inode;
@@ -40,9 +43,23 @@ struct mountEntry{
   uint minorDeviceNum;
 };
 
+struct{
+  struct mountEntry table[mountPorts];
+  struct spinlock lock;
+} mountTable;
 
-static struct mountEntry mountTable[10];
-static uint mountTableSize = 0;
+
+void mountinit()
+{
+  initlock(&mountTable.lock,"mount");
+  for(int i = 0;i<mountPorts;i++)
+  {
+    mountTable.table[i].inode.dev = -1;
+    mountTable.table[i].inode.inum = 0;
+    mountTable.table[i].majorDeviceNum = 0;
+    mountTable.table[i].minorDeviceNum = 0;
+  }
+}
 
 
 // Read the super block.
@@ -477,7 +494,7 @@ readi(struct inode *ip, char *dst, uint off, uint n)
   struct buf *bp;
 
   if(ip->type == T_DEV){
-    cprintf("Reading a device major %d minor %d\n",ip->major,ip->minor);
+    //cprintf("Reading a device major %d minor %d\n",ip->major,ip->minor);
     if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].read)
       return -1;
     return devsw[ip->major].read(ip, dst, n,off);
@@ -545,51 +562,39 @@ namecmp(const char *s, const char *t)
 
 struct inode* handleReverseMount(uint dev,uint inum)
 {
-  cprintf("handling reverse mount for dev %d, inum %d\n",dev,inum);
-  for(int i = 0;i<mountTableSize;i++)
+  //cprintf("handling reverse mount for dev %d, inum %d\n",dev,inum);
+  acquire(&mountTable.lock);
+  if(mountTable.table[dev].minorDeviceNum == dev && 1 == inum)
   {
-    cprintf("dev %d, inum %d\n",mountTable[i].inode.dev,mountTable[i].inode.inum);
-
-    if(mountTable[i].minorDeviceNum == dev && 1 == inum)
-    {
-      cprintf("found mounted dir\n");
-      struct inode* temp = iget(mountTable[i].inode.dev,mountTable[i].inode.inum);
-
-      return temp;
-
-    }
+    //cprintf("found mounted dir\n");
+    struct inode* temp = iget(mountTable.table[dev].inode.dev,mountTable.table[dev].inode.inum);
+    release(&mountTable.lock);
+    return temp;
   }
+  release(&mountTable.lock);
   return 0;
 }
 
 struct inode* handleMount(struct inode* cur)
 {
   struct inode* temp;
-  cprintf("handling mount\n");
-  cprintf("cur: dev %d, inum %d\n",cur->dev,cur->inum);
-  for(int i = 0;i<mountTableSize;i++)
+  //cprintf("handling mount\n");
+  //cprintf("cur: dev %d, inum %d\n",cur->dev,cur->inum);
+  acquire(&mountTable.lock);
+  for(int i = 0;i<mountPorts;i++)
   {
-    cprintf("temp %d, %d\n",mountTable[i].inode.dev,mountTable[i].inode.inum);
-    if(mountTable[i].inode.dev == cur->dev && mountTable[i].inode.inum == cur->inum)
+    //cprintf("temp %d, %d\n",mountTable[i].inode.dev,mountTable[i].inode.inum);
+    if(mountTable.table[i].inode.dev == cur->dev && mountTable.table[i].inode.inum == cur->inum)
     {
-      for(int j=0;j<deviceCount;j++)
-      {
-        if(majorNums[j] == mountTable[i].majorDeviceNum && minorNums[j] == mountTable[i].minorDeviceNum)
-        {
-          cprintf("Found device %s\n",devices[j]);
-          temp = iget(minorNums[j], 1);
-          cprintf("Root inode: dev %d, inum %d, type %d, nlink %d\n", 
-        temp->dev, temp->inum, temp->type, temp->nlink);
-
-          cprintf("Root %d, %d, %d, %d\n",temp->dev, temp->inum,temp->major,temp->minor);
-
-          return temp;
-        }
-      }
-
-      return 0;
+      //cprintf("Found device %s\n",devices[i]);
+      temp = iget(minorNums[i], 1);
+      release(&mountTable.lock);
+      return temp;
+      
     }
+
   }
+  release(&mountTable.lock);
   return 0;
 }
 
@@ -599,7 +604,7 @@ struct inode* handleMount(struct inode* cur)
 struct inode*
 dirlookup(struct inode *dp, char *name, uint *poff)
 {
-  cprintf("looking for %s\n",name);
+  //cprintf("looking for %s\n",name);
   uint off, inum;
   struct dirent de;
 
@@ -699,60 +704,78 @@ skipelem(char *path, char *name)
 
 
 
+int alreadyMounted(uint dev, uint inum)
+{
+  
+  acquire(&mountTable.lock);
+  if(dev != 1 && inum == 1)
+  {
+    //cprintf("We don't do double mounts in this house, you gotta unmount that thing first\n");
+    release(&mountTable.lock);
+    return 1;
+  }
 
+  release(&mountTable.lock);
+  return 0;
+}
 
 
 
 
 int mount(struct inode *source, struct inode *target){
-  cprintf("Mounting drive\n");
-  if(mountTableSize >= 9)
+  //cprintf("Mounting drive\n");
+  if(mountPorts < source->minor)
   {
     return -1;
   }
-  ilock(target);
-  mountTable[mountTableSize].inode.dev = target->dev;
-  mountTable[mountTableSize].inode.inum = target->inum;
-  iunlock(target);
+  acquire(&mountTable.lock);
+
+
 
   ilock(source);
-  mountTable[mountTableSize].majorDeviceNum = source->major;
-  mountTable[mountTableSize++].minorDeviceNum = source->minor;
+  ilock(target);
+  mountTable.table[source->minor].inode.dev = target->dev;
+  mountTable.table[source->minor].inode.inum = target->inum;
+  iunlock(target);
+
+  
+  mountTable.table[source->minor].majorDeviceNum = source->major;
+  mountTable.table[source->minor].minorDeviceNum = source->minor;
   iunlock(source);
+  release(&mountTable.lock);
   return 0;
 }
 
 int unmount(struct inode *target)
 {
   int i;
-  for(i = 0;i<mountTableSize;i++)
+  acquire(&mountTable.lock);
+  for(i = 0;i<mountPorts;i++)
   {
-    if(target->dev == mountTable[i].inode.dev && target->inum == mountTable[i].inode.inum)
+    if(target->dev == mountTable.table[i].inode.dev && target->inum == mountTable.table[i].inode.inum)
     {
-      cprintf("Found it\n");
+      //cprintf("Found it\n");
       break;
     }
   }
 
-  struct inode* temp = iget(mountTable[i].inode.dev,mountTable[i].inode.inum);
-  cprintf("refs %d\n",temp->ref);
-  if(temp->ref>2 || procInDisk(mountTable[i].minorDeviceNum ))
+  struct inode* temp = iget(mountTable.table[i].inode.dev,mountTable.table[i].inode.inum);
+  //cprintf("refs %d\n",temp->ref);
+  if(temp->ref>2 || procInDisk(mountTable.table[i].minorDeviceNum ))
   {
     iput(temp);
     iput(temp);
-    cprintf("Too many referencing\n");
+    cprintf("Too many referencing or someone is using this\n");
+    release(&mountTable.lock);
     return -1;
   }
   iput(temp);
-  for(;i<mountTableSize-1;i++)
-  {
-    mountTable[i].inode.dev = mountTable[i+1].inode.dev;
-    mountTable[i].inode.inum = mountTable[i+1].inode.inum;
+  mountTable.table[i].inode.dev = -1;
+  mountTable.table[i].inode.inum = 0;
 
-    mountTable[i].majorDeviceNum = mountTable[i+1].majorDeviceNum;
-    mountTable[i].minorDeviceNum = mountTable[i+1].minorDeviceNum;
-  }
-  mountTableSize--;
+  mountTable.table[i].majorDeviceNum = 0;
+  mountTable.table[i].minorDeviceNum = 0;
+  release(&mountTable.lock);
   return 0;
 }
 
@@ -773,7 +796,7 @@ namex(char *path, int nameiparent, char *name,uint doMount)
 
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
-    cprintf("path %s\n",path);
+    //cprintf("path %s\n",path);
     if(ip->type != T_DIR){
       iunlockput(ip);
       return 0;
@@ -791,8 +814,8 @@ namex(char *path, int nameiparent, char *name,uint doMount)
       if(next!=0)
       {
         
-        cprintf("Trying to handle a reverse mount\n");
-        cprintf("Temp %d %d %d\n",next->dev,next->inum,next->size);
+        //cprintf("Trying to handle a reverse mount\n");
+        //cprintf("Temp %d %d %d\n",next->dev,next->inum,next->size);
         ilock(next);
         //next =  dirlookup(next,"/..",0,0);
         struct dirent de;
@@ -801,13 +824,13 @@ namex(char *path, int nameiparent, char *name,uint doMount)
             panic("handleReverse .. read");
           if(de.inum == 0)
             continue;
-          cprintf("%s dir name\n",de.name);
+          //cprintf("%s dir name\n",de.name);
           if(namecmp("..", de.name) == 0){
 
             iunlockput(next);
-            cprintf("Getting %d %d %d\n",next->dev, de.inum,next->ref);
+            //cprintf("Getting %d %d %d\n",next->dev, de.inum,next->ref);
             next =  iget(next->dev, de.inum);
-            cprintf("What I got %d %d %d\n",next->dev, next->inum,next->ref);
+            //cprintf("What I got %d %d %d\n",next->dev, next->inum,next->ref);
             break;
           }
         }
@@ -842,7 +865,7 @@ namex(char *path, int nameiparent, char *name,uint doMount)
     iunlockput(ip);
     ip = next;
   }
-  cprintf("Refs %d\n",ip->ref);
+  //cprintf("Refs %d\n",ip->ref);
   
   if(nameiparent){
     iput(ip);
@@ -870,7 +893,7 @@ nameiNoMount(char *path)
 struct inode*
 nameiparent(char *path, char *name)
 {
-  cprintf("The path %s\n",path);
+  //cprintf("The path %s\n",path);
   return namex(path, 1, name,1);
 }
 

@@ -60,7 +60,8 @@ void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
 int             mount(struct inode*,struct inode*);
 int             unmount(struct inode*);
-
+int             alreadyMounted(uint , uint);
+void            mountinit();;
 
 
 

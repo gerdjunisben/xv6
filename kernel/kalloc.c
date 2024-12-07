@@ -123,7 +123,7 @@ void incrementRefs(uint pa)
     //panic("incrementRefs");
 
   int ref = pa>>PGSHIFT;
-  cprintf("Incrementing %p\n",pa);
+  //cprintf("Incrementing %p\n",pa);
   if(kmem.use_lock)
       acquire(&kmem.lock);
   kmem.refCounts[ref]+=1;

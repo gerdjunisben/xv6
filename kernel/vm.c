@@ -253,7 +253,7 @@ setupkvm(void)
     panic("PHYSTOP too high");
   for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
   {
-    cprintf("setupkvm mappages\n");
+    //cprintf("setupkvm mappages\n");
     if(mappages(pgdir, k->virt, k->phys_end - k->phys_start,
                 (uint)k->phys_start, k->perm) < 0) {
       freevm(pgdir);
@@ -316,7 +316,7 @@ inituvm(pde_t *pgdir, char *init, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
-  cprintf("inituvm mappages\n");
+  //cprintf("inituvm mappages\n");
   mappages(pgdir, 0, PGSIZE, V2P(mem), PTE_W|PTE_U);
   memmove(mem, init, sz);
 }
@@ -367,7 +367,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       return 0;
     }
     memset(mem, 0, PGSIZE);
-    cprintf("allocuvm mappages\n");
+    //cprintf("allocuvm mappages\n");
     if(mappages(pgdir, (char*)a, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
       cprintf("allocuvm out of memory (2)\n");
       deallocuvm(pgdir, newsz, oldsz);
@@ -462,7 +462,7 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
     *pte &= ~PTE_W;
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    cprintf("Copyvm mappage\n");
+    //cprintf("Copyvm mappage\n");
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
       goto bad;
     incrementRefs(pa);
@@ -479,7 +479,7 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
     //cprintf("StackTop %p\n",stackTop);
-    cprintf("Copyvm stack mappage\n");
+    //cprintf("Copyvm stack mappage\n");
     if(mappages(d, (void*)stackTop, PGSIZE, pa, flags) < 0)
       goto bad;
     

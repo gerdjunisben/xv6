@@ -300,7 +300,7 @@ create(char *path, short type, short major, short minor)
 int
 sys_open(void)
 {
-  cprintf("Sysopen\n");
+  //cprintf("Sysopen\n");
   char *path;
   int fd, omode;
   struct file *f;
@@ -310,7 +310,7 @@ sys_open(void)
     return -1;
 
   begin_op();
-  cprintf("Path: %s\n", path);
+  //cprintf("Path: %s\n", path);
 
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
@@ -325,7 +325,7 @@ sys_open(void)
       return -1;
     }
     ilock(ip);
-    cprintf("dev %d, inum %d\n",ip->dev,ip->inum);
+    //cprintf("dev %d, inum %d\n",ip->dev,ip->inum);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();
@@ -522,10 +522,7 @@ int sys_mount(void)
 
   cprintf("source %s, target %s\n",source,target);
 
-  if (strncmp(source, "/disk2",6) != 0 && strncmp(source, "/disk3",6) != 0) {
-    return -1;  
-  }
-  cprintf("Valid disk\n");
+
   begin_op();
   if((sourceip = namei(source)) == 0){
     end_op();
@@ -533,19 +530,27 @@ int sys_mount(void)
   }
   end_op();
 
-  cprintf("source %d major, %d minor, %d type\n",sourceip->major,sourceip->minor,sourceip->type);
+  //cprintf("source %d major, %d minor, %d type\n",sourceip->major,sourceip->minor,sourceip->type);
   begin_op();
   if((targetip = namei(target)) == 0){
     end_op();
+    iput(sourceip);
     return -1;
   }
   end_op();
-
+  if(alreadyMounted(targetip->dev,targetip->inum))
+  {
+    iput(targetip);
+    iput(sourceip);
+    return -1;
+  }
   
-  cprintf("target %d major, %d minor, %d type\n",targetip->major,targetip->minor,targetip->type);
+  //cprintf("target %d major, %d minor, %d type\n",targetip->major,targetip->minor,targetip->type);
 
   if(mount(sourceip,targetip)<0)
   {
+    iput(targetip);
+    iput(sourceip);
     return -1;
   }
 
@@ -581,7 +586,7 @@ int sys_unmount(void)
   end_op();
 
   
-  cprintf("target %d major, %d minor, %d type\n",targetip->major,targetip->minor,targetip->type);
+  //cprintf("target %d major, %d minor, %d type\n",targetip->major,targetip->minor,targetip->type);
 
   if(unmount(targetip)<0)
   {
