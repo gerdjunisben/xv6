@@ -217,7 +217,7 @@ sys_unlink(void)
   if(namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
     goto bad;
 
-  if((ip = dirlookup(dp, name, &off,1)) == 0)
+  if((ip = dirlookup(dp, name, &off)) == 0)
     goto bad;
   ilock(ip);
 
@@ -257,12 +257,12 @@ create(char *path, short type, short major, short minor)
   uint off;
   struct inode *ip, *dp;
   char name[DIRSIZ];
-
   if((dp = nameiparent(path, name)) == 0)
     return 0;
+  cprintf("Got parent inode of %d %d %d\n",dp->ref,dp->dev,dp->inum);
   ilock(dp);
 
-  if((ip = dirlookup(dp, name, &off,1)) != 0){
+  if((ip = dirlookup(dp, name, &off)) != 0){
     iunlockput(dp);
     ilock(ip);
     if(type == T_FILE && ip->type == T_FILE)
@@ -325,7 +325,7 @@ sys_open(void)
       return -1;
     }
     ilock(ip);
-    cprintf("Major %d, minor %d\n",ip->major,ip->minor);
+    cprintf("dev %d, inum %d\n",ip->dev,ip->inum);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();

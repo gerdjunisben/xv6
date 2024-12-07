@@ -202,6 +202,7 @@ commit()
 {
   
   if (log.lh.n > 0) {
+    cprintf("Commiting logs\n");
     //cprintf("executing commity on %d logs\n",log.lh.n);
     write_log();     // Write modified blocks from cache to log
     write_head();    // Write header to disk -- the real commit

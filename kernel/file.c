@@ -98,7 +98,7 @@ int
 fileread(struct file *f, char *addr, int n)
 {
   int r;
-  cprintf("fileread major: %d, minor: %d\n", f->ip->major, f->ip->minor);
+  //cprintf("fileread major: %d, minor: %d\n", f->ip->major, f->ip->minor);
   if(f->readable == 0)
     return -1;
   if(f->type == FD_PIPE)
@@ -237,7 +237,7 @@ int mkfs(struct file* file)
   mksb.logstart = xint(2);
   mksb.inodestart = xint(2+nlog);
   mksb.bmapstart = xint(2+nlog+ninodeblocks);
-  cprintf("major %d, minor %d\n",file->ip->major,file->ip->minor);
+  //cprintf("major %d, minor %d\n",file->ip->major,file->ip->minor);
 
   freeblock = nmeta;
   

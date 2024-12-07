@@ -548,7 +548,7 @@ struct inode* handleReverseMount(uint dev)
   cprintf("handling reverse mount\n");
   for(int i = 0;i<mountTableSize;i++)
   {
-    cprintf("dev %d, inum %d, size %d\n",mountTable[i].inode.dev,mountTable[i].inode.inum,mountTable[i].inode.size);
+    cprintf("dev %d, inum %d\n",mountTable[i].inode.dev,mountTable[i].inode.inum);
 
     if(mountTable[i].minorDeviceNum == dev)
     {
@@ -595,7 +595,7 @@ struct inode* handleMount(struct inode* cur)
 // Look for a directory entry in a directory.
 // If found, set *poff to byte offset of entry.
 struct inode*
-dirlookup(struct inode *dp, char *name, uint *poff,uint doMount)
+dirlookup(struct inode *dp, char *name, uint *poff)
 {
   cprintf("looking for %s\n",name);
   uint off, inum;
@@ -634,7 +634,7 @@ dirlink(struct inode *dp, char *name, uint inum)
   struct inode *ip;
 
   // Check that name is not present.
-  if((ip = dirlookup(dp, name, 0,1)) != 0){
+  if((ip = dirlookup(dp, name, 0)) != 0){
     iput(ip);
     return -1;
   }
@@ -710,12 +710,7 @@ int mount(struct inode *source, struct inode *target){
   }
   mountTable[mountTableSize].inode.dev = target->dev;
   mountTable[mountTableSize].inode.inum = target->inum;
-  ilock(target);
-  mountTable[mountTableSize].inode.minor = target->minor;
-  mountTable[mountTableSize].inode.major = target->major;
-  mountTable[mountTableSize].inode.nlink = target->nlink;
-  mountTable[mountTableSize].inode.size = target->size;
-  iunlock(target);
+
   ilock(source);
   mountTable[mountTableSize].majorDeviceNum = source->major;
   mountTable[mountTableSize++].minorDeviceNum = source->minor;
@@ -750,10 +745,7 @@ int unmount(struct inode *target)
   {
     mountTable[i].inode.dev = mountTable[i+1].inode.dev;
     mountTable[i].inode.inum = mountTable[i+1].inode.inum;
-    mountTable[i].inode.minor = mountTable[i+1].inode.minor;
-    mountTable[i].inode.major = mountTable[i+1].inode.major;
-    mountTable[i].inode.nlink = mountTable[i+1].inode.nlink;
-    mountTable[i].inode.size = mountTable[i+1].inode.size;
+
     mountTable[i].majorDeviceNum = mountTable[i+1].majorDeviceNum;
     mountTable[i].minorDeviceNum = mountTable[i+1].minorDeviceNum;
   }
@@ -770,7 +762,7 @@ static struct inode*
 namex(char *path, int nameiparent, char *name,uint doMount)
 {
   struct inode *ip, *next;
-
+  uint didReverse = 0;
   if(*path == '/')
     ip = iget(ROOTDEV, ROOTINO);
   else
@@ -795,7 +787,7 @@ namex(char *path, int nameiparent, char *name,uint doMount)
       if(next!=0)
       {
         cprintf("Trying to handle a reverse mount\n");
-        cprintf("Temp %d %d %d\n",next->dev,next->inum,next->size);
+        //cprintf("Temp %d %d %d\n",next->dev,next->inum,next->size);
         ilock(next);
         //next =  dirlookup(next,"/..",0,0);
         struct dirent de;
@@ -808,43 +800,53 @@ namex(char *path, int nameiparent, char *name,uint doMount)
           if(namecmp("..", de.name) == 0){
 
             iunlock(next);
+            cprintf("Getting %d %d\n",next->dev, de.inum);
             next =  iget(next->dev, de.inum);
             break;
           }
         }
   
         doMount = 0;
+        didReverse = 1;
       }
       else
       {
-        if((next = dirlookup(ip, name, 0,doMount)) == 0){
+        if((next = dirlookup(ip, name, 0)) == 0){
           iunlockput(ip);
           return 0;
         }
       }
     }
-    else if((next = dirlookup(ip, name, 0,doMount)) == 0){
-      iunlockput(ip);
-      return 0;
-    }
-    iunlockput(ip);
-    ip = next;
-    if(namecmp(name,"..")!=0 && doMount)
+    if(!didReverse)
     {
+      if((next = dirlookup(ip, name, 0)) == 0){
+        iunlockput(ip);
+        return 0;
+      }
+      if(namecmp(name,"..")!=0 && doMount)
+      {
       struct inode* temp;
 
-      if((temp = handleMount(ip))>0)
-      {
-        *ip = *temp;
-        doMount = 0;
+        if((temp = handleMount(next))>0)
+        {
+          next = temp;
+          doMount = 0;
+        }
       }
     }
+    
+    
+
+
+    
+    iunlockput(ip);
+    ip = next;
   }
   if(nameiparent){
     iput(ip);
     return 0;
   }
-  cprintf("Found inode");
+  //cprintf("Found inode");
   return ip;
 }
 
