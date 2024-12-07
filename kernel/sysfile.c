@@ -548,6 +548,9 @@ int sys_mount(void)
   {
     return -1;
   }
+
+  iput(targetip);
+  iput(sourceip);
   
   
   //note all this junk should probably be done elsewhere
@@ -584,6 +587,8 @@ int sys_unmount(void)
   {
     return -1;
   }
+
+  iput(targetip);
   
 
   return 0;

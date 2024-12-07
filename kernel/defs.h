@@ -148,6 +148,10 @@ void            yield(void);
 void            procStats(uint);
 char*           getCPUSchedName(void);
 
+
+
+uint            procInDisk(uint );
+
 // swtch.S
 void            swtch(struct context**, struct context*);
 

@@ -6,6 +6,9 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 
 #ifndef CPU_SCHEDULER
@@ -44,6 +47,29 @@ char *getState(enum procstate state) {
   }
 }
 
+
+uint procInDisk(uint diskNum)
+{
+  acquire(&ptable.lock);
+  for(int i = 0; i < NPROC; i++) {
+    struct proc *curr_proc = &ptable.proc[i];
+    if(curr_proc->cwd->dev == diskNum)
+    {
+      release(&ptable.lock);
+      return -1;
+    }
+    for(int j = 0;j<NOFILE;j++)
+    {
+      if(curr_proc->ofile[j]->ip->dev == diskNum)
+      {
+        release(&ptable.lock);
+        return -1;
+      }
+    }
+  }
+  release(&ptable.lock);
+  return 0;
+}
 
 
 

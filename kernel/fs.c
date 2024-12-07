@@ -543,17 +543,19 @@ namecmp(const char *s, const char *t)
   return strncmp(s, t, DIRSIZ);
 }
 
-struct inode* handleReverseMount(uint dev)
+struct inode* handleReverseMount(uint dev,uint inum)
 {
-  cprintf("handling reverse mount\n");
+  cprintf("handling reverse mount for dev %d, inum %d\n",dev,inum);
   for(int i = 0;i<mountTableSize;i++)
   {
     cprintf("dev %d, inum %d\n",mountTable[i].inode.dev,mountTable[i].inode.inum);
 
-    if(mountTable[i].minorDeviceNum == dev)
+    if(mountTable[i].minorDeviceNum == dev && 1 == inum)
     {
       cprintf("found mounted dir\n");
-      return iget(mountTable[i].inode.dev,mountTable[i].inode.inum);
+      struct inode* temp = iget(mountTable[i].inode.dev,mountTable[i].inode.inum);
+
+      return temp;
 
     }
   }
@@ -740,7 +742,7 @@ int unmount(struct inode *target)
     cprintf("Too many referencing\n");
     return -1;
   }
-  iunlock(temp);
+  iunlockput(temp);
   for(;i<mountTableSize-1;i++)
   {
     mountTable[i].inode.dev = mountTable[i+1].inode.dev;
@@ -780,14 +782,16 @@ namex(char *path, int nameiparent, char *name,uint doMount)
       iunlock(ip);
       return ip;
     }
+    
     if(namecmp(name,"..")==0 && doMount)
     {
       
-      next = handleReverseMount(ip->dev);
+      next = handleReverseMount(ip->dev,ip->inum);
       if(next!=0)
       {
+        
         cprintf("Trying to handle a reverse mount\n");
-        //cprintf("Temp %d %d %d\n",next->dev,next->inum,next->size);
+        cprintf("Temp %d %d %d\n",next->dev,next->inum,next->size);
         ilock(next);
         //next =  dirlookup(next,"/..",0,0);
         struct dirent de;
@@ -799,22 +803,16 @@ namex(char *path, int nameiparent, char *name,uint doMount)
           cprintf("%s dir name\n",de.name);
           if(namecmp("..", de.name) == 0){
 
-            iunlock(next);
-            cprintf("Getting %d %d\n",next->dev, de.inum);
+            iunlockput(next);
+            cprintf("Getting %d %d %d\n",next->dev, de.inum,next->ref);
             next =  iget(next->dev, de.inum);
+            cprintf("What I got %d %d %d\n",next->dev, next->inum,next->ref);
             break;
           }
         }
-  
+        
         doMount = 0;
         didReverse = 1;
-      }
-      else
-      {
-        if((next = dirlookup(ip, name, 0)) == 0){
-          iunlockput(ip);
-          return 0;
-        }
       }
     }
     if(!didReverse)
@@ -825,16 +823,17 @@ namex(char *path, int nameiparent, char *name,uint doMount)
       }
       if(namecmp(name,"..")!=0 && doMount)
       {
-      struct inode* temp;
+        struct inode* temp;
 
         if((temp = handleMount(next))>0)
         {
+          iput(next);
           next = temp;
           doMount = 0;
         }
       }
     }
-    
+    didReverse = 0;
     
 
 
@@ -842,6 +841,8 @@ namex(char *path, int nameiparent, char *name,uint doMount)
     iunlockput(ip);
     ip = next;
   }
+  cprintf("Refs %d\n",ip->ref);
+  
   if(nameiparent){
     iput(ip);
     return 0;
