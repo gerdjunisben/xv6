@@ -53,17 +53,22 @@ uint procInDisk(uint diskNum)
   acquire(&ptable.lock);
   for(int i = 0; i < NPROC; i++) {
     struct proc *curr_proc = &ptable.proc[i];
-    if(curr_proc->cwd->dev == diskNum)
+    if(curr_proc->state == RUNNING ||  curr_proc->state == RUNNABLE || curr_proc->state == SLEEPING)
     {
-      release(&ptable.lock);
-      return -1;
-    }
-    for(int j = 0;j<NOFILE;j++)
-    {
-      if(curr_proc->ofile[j]->ip->dev == diskNum)
+      if(curr_proc->cwd->dev && curr_proc->cwd->dev == diskNum)
       {
+        cprintf("A proc is currently in this dir %d\n",curr_proc->cwd->size);
         release(&ptable.lock);
         return -1;
+      }
+      for(int j = 0;j<NOFILE;j++)
+      {
+        if(curr_proc->ofile[j] && curr_proc->ofile[j]->ip && curr_proc->ofile[j]->ip->dev == diskNum)
+        {
+          cprintf("A proc has an open file to this dir\n");
+          release(&ptable.lock);
+          return -1;
+        }
       }
     }
   }

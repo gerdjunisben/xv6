@@ -710,8 +710,10 @@ int mount(struct inode *source, struct inode *target){
   {
     return -1;
   }
+  ilock(target);
   mountTable[mountTableSize].inode.dev = target->dev;
   mountTable[mountTableSize].inode.inum = target->inum;
+  iunlock(target);
 
   ilock(source);
   mountTable[mountTableSize].majorDeviceNum = source->major;
@@ -732,17 +734,16 @@ int unmount(struct inode *target)
     }
   }
 
-  //ref inode is I think 1
   struct inode* temp = iget(mountTable[i].inode.dev,mountTable[i].inode.inum);
-  ilock(temp);
   cprintf("refs %d\n",temp->ref);
-  if(temp->ref>2)
+  if(temp->ref>2 || procInDisk(mountTable[i].minorDeviceNum ))
   {
-    iunlock(temp);
+    iput(temp);
+    iput(temp);
     cprintf("Too many referencing\n");
     return -1;
   }
-  iunlockput(temp);
+  iput(temp);
   for(;i<mountTableSize-1;i++)
   {
     mountTable[i].inode.dev = mountTable[i+1].inode.dev;
