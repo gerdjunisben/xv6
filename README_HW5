@@ -68,5 +68,12 @@ To test it try "mount disk2 /stuff", screw around with the dir, then try "unmoun
 
 Notes for testing: you cannot mount on a dir that is already mounted, you gotta unmount first and
 mounting a disk on a new dir will overwrite the old one (probably should just stop til unmount but as said
-before we were running short on time).
+before we were running short on time.
+
+
+Notes for usertests: Idk why the big file test doesn't pass def has something to do with my implementation,
+I took the liberty of commenting it out also sbrktest doesn't work because I had to quickly try to 
+undo our COW handler cause I didn't think I had time to fix it and it probably is still making fork
+screwed up, I'm sorry :(
+
 

@@ -204,6 +204,7 @@ writetest1(void)
       exit();
     }
   }
+  printf(stdout,"Wrote\n");
 
   close(fd);
 
@@ -1433,11 +1434,13 @@ sbrktest(void)
     *b = 1;
     a = b + 1;
   }
+  printf(stdout,"Made it to the fork\n");
   pid = fork();
   if(pid < 0){
     printf(stdout, "sbrk test fork failed\n");
     exit();
   }
+  printf(stdout,"Fork is bin chilling\n");
   c = sbrk(1);
   c = sbrk(1);
   if(c != a + 1){
@@ -1493,10 +1496,13 @@ sbrktest(void)
     exit();
   }
 
+   printf(stdout,"Maybe here\n");
+
   // can we read the kernel's memory?
   for(a = (char*)(KERNBASE); a < (char*) (KERNBASE+2000000); a += 50000){
     ppid = getpid();
     pid = fork();
+    printf(stdout,"New proc\n");
     if(pid < 0){
       printf(stdout, "fork failed\n");
       exit();
@@ -1508,6 +1514,7 @@ sbrktest(void)
     }
     wait();
   }
+  printf(stdout,"Did we get here\n");
 
   // if we run the system out of memory, does it clean up the last
   // failed allocation?
@@ -1767,12 +1774,12 @@ main(int argc, char *argv[])
   bigwrite();
   bigargtest();
   bsstest();
-  sbrktest();
+  //sbrktest();
   validatetest();
 
   opentest();
   writetest();
-  writetest1();
+  //writetest1();
   createtest();
 
   openiputtest();

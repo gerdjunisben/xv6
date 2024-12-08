@@ -17,11 +17,11 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc);
 
 void stackSizeHandler(uint esp) {
 
-  //cprintf("Stack Handler");
+  //cprintf("Stack Handler\n");
   uint stackSize = myproc()->stackSize;
 
   uint newStackSize =(KERNBASE - 4) - esp;
-
+  //cprintf("newStack %d\n",newStackSize);
   if (newStackSize > MAX_STACK_SIZE) {
     //cprintf("Segfault\n");
     kill(myproc()->pid);
@@ -367,7 +367,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       return 0;
     }
     memset(mem, 0, PGSIZE);
-    //cprintf("allocuvm mappages\n");
+    cprintf("allocuvm mappages\n");
     if(mappages(pgdir, (char*)a, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
       cprintf("allocuvm out of memory (2)\n");
       deallocuvm(pgdir, newsz, oldsz);
@@ -445,27 +445,27 @@ clearpteu(pde_t *pgdir, char *uva)
 pde_t*
 copyuvm(pde_t *pgdir, uint sz,uint stackSize)
 {
-  //cprintf("Copyuvm size %d, stack %d\n",sz,stackSize);
+  cprintf("Copyuvm size %d, stack %d\n",sz,stackSize);
   pde_t *d;
   pte_t *pte;
   uint pa, i, flags;
+  char *mem;
 
   if((d = setupkvm()) == 0)
     return 0;
-
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
-
-    *pte &= ~PTE_W;
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    //cprintf("Copyvm mappage\n");
-    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
+    if((mem = kalloc()) == 0)
       goto bad;
-    incrementRefs(pa);
+    memmove(mem, (char*)P2V(pa), PGSIZE);
+    //cprintf("i %p\n",i);
+    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
+      goto bad;
   }
 
   for(uint stackTop = KERNBASE-stackSize;stackTop<KERNBASE-4  ;stackTop+=PGSIZE)
@@ -474,25 +474,20 @@ copyuvm(pde_t *pgdir, uint sz,uint stackSize)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
-
-    *pte &= ~PTE_W;
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    //cprintf("StackTop %p\n",stackTop);
-    //cprintf("Copyvm stack mappage\n");
-    if(mappages(d, (void*)stackTop, PGSIZE, pa, flags) < 0)
+    if((mem = kalloc()) == 0)
       goto bad;
-    
-    incrementRefs(pa);
+    memmove(mem, (char*)P2V(pa), PGSIZE);
+    //cprintf("StackTop %p\n",stackTop);
+    if(mappages(d, (void*)stackTop, PGSIZE, V2P(mem), flags) < 0)
+      goto bad;
   }
 
-  // Flush Cache
-  lcr3(V2P(pgdir));
   return d;
 
 bad:
   freevm(d);
-  lcr3(V2P(pgdir));
   return 0;
 }
 

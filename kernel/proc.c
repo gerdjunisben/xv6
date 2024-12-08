@@ -567,6 +567,7 @@ fork(void)
   if((np = allocproc()) == 0){
     return -1;
   }
+  cprintf("Alloced proc fine\n");
 
   // Copy process state from proc.
   //cprintf("The fucking stack size %d\n",curproc->stackSize);
@@ -576,7 +577,7 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
-
+  cprintf("Memory fine\n");
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
@@ -598,7 +599,7 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&ptable.lock);
-
+  cprintf("Fork completed\n");
   return pid;
 }
 
