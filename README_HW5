@@ -1,4 +1,14 @@
+
+
+
 Exercise 1:
+
+We did this exercise a few weeks ago and a few tests and large assignments ago and we had to
+rewrite a bunch of stuff mentioned later so forgive us if we miss something. 
+Init was fairly straight forward just switch between all the disks and fire off init codes.
+Also you gotta set up all the make files right, one thing we missed was recreation on make new so
+our disk was not being made correctly until exercise 3 had some hickups when writing and we had to back
+track and find this (You may notice there is a commit that clearly signifies when I (Ben) fixed that).
 
 Exercise 2:
 
@@ -17,7 +27,18 @@ To demonstrate this implementation, we created the user program df.c, which read
 first block from disk1, and then following the structure seen in class and using lseek,
 we find all the required data traversing through the superblock's data.
 
+Also should be noted that we made an lseek syscall for df.c that does a fairly bare bones lseek.
+
 Exercise 3:
+
+So we implemented a syscall for mkfs and we pretty much replicated the behavior of mkfs minus the reading all
+the dirs. Our syscall does filter out any non disk2 or disk3 input, if there were some how more disk images 
+we'd obviously change that.
+
+We're unsure if keeping the boot block in the new formatted disk is fine, we doubt it but we sorta ran out of time
+and everything works so we're gonna call it quits, sorry :(
+
+Anyways to test this you can use "umkfs disk2" or "umkfs disk3" or some other input but it will stop you.
 
 Exercise 4:
 
@@ -38,9 +59,14 @@ the mounted disk. We also added a method to verify if a disk was already mounted
 the same unit twice.
 
 For unmounting, it was necessary to first check for the references of the inode corresponding to
-the mounted path. If we are sure that there are no additional references to that inode, we would
-remove it from the mount table. This way, when handleMount is called, the inode won't be found in it.
+the mounted path. If we are sure that there are no additional references to that inode, then we would
+call procInDisk with the minor num to search if any proc had a file open in the img or had their home dir in it
+then we remove it from the mount table. This way, when handleMount is called, the inode won't be found in it.
 
-Note: When testing our implementation, we noticed that the changes made to a mounted path (e.g., creating
-a folder) won't show up until the OS is restarted. We believe it has something to do with the references
-when commiting the logs for a disk, but we didn't have the time to verify it.
+
+To test it try "mount disk2 /stuff", screw around with the dir, then try "unmount /stuff".
+
+Notes for testing: you cannot mount on a dir that is already mounted, you gotta unmount first and
+mounting a disk on a new dir will overwrite the old one (probably should just stop til unmount but as said
+before we were running short on time).
+

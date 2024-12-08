@@ -22,6 +22,9 @@ main(int argc, char *argv[])
     exit();
   }
   printf(0,"Formatting disk %s, this may take a few moments\n",diskName);
-  mkfs(diskName);
+  if(mkfs(diskName)<0)
+  {
+    printf(0,"Formatting failed\n");
+  }
   exit();
 }
