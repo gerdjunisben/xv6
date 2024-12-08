@@ -1,0 +1,46 @@
+Exercise 1:
+
+Exercise 2:
+
+This exercise required modifying almost (if not every) function inside ide.c
+to do additional sanity checks depending on which disk is being read, as well
+as defining the correct base address depending on the device number. When it comes to
+idewrite and ideread, we decided to pass the offset to this functions as an argument.
+
+For ideread, we do a for loop keeping track on how many bytes have been read (using bread)
+and how many bytes we are supposed to read, to ensure we handle properly possible shortcounts.
+Each time we read data with bread, we move it to the intended destination.
+Similarly, for idewrite we did a similar behavior, but instead of moving the data
+to some destination after bread(), we send the buf to log_write and then we release it.
+
+To demonstrate this implementation, we created the user program df.c, which reads the 
+first block from disk1, and then following the structure seen in class and using lseek,
+we find all the required data traversing through the superblock's data.
+
+Exercise 3:
+
+Exercise 4:
+
+We decided that the easiest way to achieve the mounting process was to maintain a
+mount table in the form of an array. This array is composed of many mount Entries.
+Each mount entry holds the source's major and minor numbers, and the inode dev and inum
+of the target. Initially, it was planned to add to this table each entry that arrived
+(as long as it didn't exceed the array's size), but later we decided it would be better
+to index the table by the source's minor number.
+
+Now, the tricky part was to get namex to return the inode of the disk when looking for the 
+path it was mounted at, and to get back to that original file's parent when looking for '..'.
+We decided that it was better to have two separate methods: handleMount and handleReverseMount.
+The first one would look at the given inode inside the mount table and, if a match is found,
+get the inode of the root of the disk that was mounted and return it. The other method would do
+the reversed operation, getting the parent inode of the original inode when looking for '..' inside
+the mounted disk. We also added a method to verify if a disk was already mounted to prevent mounting 
+the same unit twice.
+
+For unmounting, it was necessary to first check for the references of the inode corresponding to
+the mounted path. If we are sure that there are no additional references to that inode, we would
+remove it from the mount table. This way, when handleMount is called, the inode won't be found in it.
+
+Note: When testing our implementation, we noticed that the changes made to a mounted path (e.g., creating
+a folder) won't show up until the OS is restarted. We believe it has something to do with the references
+when commiting the logs for a disk, but we didn't have the time to verify it.
